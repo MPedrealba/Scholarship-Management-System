@@ -69,7 +69,7 @@ export const ScholarshipAnalyticsTab: React.FC<ScholarshipAnalyticsTabProps> = (
   return (
     <div className="space-y-6">
       {/* 1. Header Overview & Financial Health */}
-      <div className="bg-gradient-to-br from-[#800000] via-[#650000] to-[#450000] rounded-2xl p-6 text-white shadow-md border-b-4 border-amber-400">
+      <div className="bg-gradient-to-br from-maroon-primary via-maroon-hover to-maroon-deep rounded-2xl p-6 text-white shadow-md border-b-4 border-gold-primary">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/20">
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold uppercase tracking-wider mb-2">
@@ -147,7 +147,7 @@ export const ScholarshipAnalyticsTab: React.FC<ScholarshipAnalyticsTabProps> = (
         <div className="lg:col-span-7 bg-white rounded-xl p-6 border border-neutral-200 shadow-sm space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-red-50 text-[#800000]">
+              <div className="p-2 rounded-lg bg-maroon-subtle text-maroon-primary">
                 <GraduationCap className="w-4 h-4" />
               </div>
               <div>
@@ -159,7 +159,7 @@ export const ScholarshipAnalyticsTab: React.FC<ScholarshipAnalyticsTabProps> = (
                 </p>
               </div>
             </div>
-            <span className="text-xs font-bold text-[#800000] bg-red-50 px-2 py-0.5 rounded">
+            <span className="text-xs font-bold text-maroon-primary bg-maroon-subtle px-2 py-0.5 rounded">
               7 Colleges
             </span>
           </div>
@@ -169,7 +169,7 @@ export const ScholarshipAnalyticsTab: React.FC<ScholarshipAnalyticsTabProps> = (
               <div key={col.code} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-[#800000] px-1.5 py-0.5 bg-neutral-100 rounded text-[11px]">
+                    <span className="font-mono font-bold text-maroon-primary px-1.5 py-0.5 bg-neutral-100 rounded text-[11px]">
                       {col.code}
                     </span>
                     <span className="font-semibold text-neutral-800">{col.name}</span>
@@ -185,7 +185,7 @@ export const ScholarshipAnalyticsTab: React.FC<ScholarshipAnalyticsTabProps> = (
                 {/* Progress bar */}
                 <div className="w-full bg-neutral-100 rounded-full h-2 overflow-hidden flex">
                   <div
-                    className="bg-[#800000] h-2 transition-all duration-500 rounded-full"
+                    className="bg-maroon-primary h-2 transition-all duration-500 rounded-full"
                     style={{ width: `${Math.max(col.percentage, 4)}%` }}
                     title={`${col.percentage}% of applications`}
                   ></div>
@@ -200,7 +200,7 @@ export const ScholarshipAnalyticsTab: React.FC<ScholarshipAnalyticsTabProps> = (
           {/* Status Breakdown Box */}
           <div className="bg-white rounded-xl p-6 border border-neutral-200 shadow-sm space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
-              <BarChart3 className="w-4 h-4 text-[#800000]" />
+              <BarChart3 className="w-4 h-4 text-maroon-primary" />
               <h3 className="text-sm font-bold text-neutral-900">
                 Application Review Statuses
               </h3>

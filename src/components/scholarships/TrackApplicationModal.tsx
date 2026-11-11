@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ScholarshipApplication, ScholarshipStatus } from '../../types';
 import { formatPHP } from '../../utils/exportUtils';
 import { EaristLogo } from '../common/EaristLogo';
+import { trackApplicationApi, resolveDeficiencyApi } from '../../utils/api';
 import {
   X,
   Search,
@@ -18,6 +19,7 @@ import {
   Award,
   Check,
   RotateCcw,
+  Loader2,
 } from 'lucide-react';
 
 export interface TrackApplicationModalProps {
@@ -25,6 +27,7 @@ export interface TrackApplicationModalProps {
   onClose: () => void;
   applications: ScholarshipApplication[];
   onUpdateApplication?: (updated: ScholarshipApplication) => void;
+  initialSearchQuery?: string;
 }
 
 export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
@@ -32,8 +35,9 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
   onClose,
   applications,
   onUpdateApplication,
+  initialSearchQuery,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearchQuery || '');
   const [searchedApp, setSearchedApp] = useState<ScholarshipApplication | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [showSlip, setShowSlip] = useState(false);
@@ -44,35 +48,65 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
   const [reuploadFile, setReuploadFile] = useState<File | null>(null);
   const [reuploadError, setReuploadError] = useState<string | null>(null);
   const [reuploadSuccessMsg, setReuploadSuccessMsg] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSubmittingReupload, setIsSubmittingReupload] = useState(false);
+
+  // Shared search implementation
+  const performSearch = async (rawQuery: string) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+
+    setIsSearching(true);
+    setReuploadSuccessMsg(null);
+    setReuploadError(null);
+
+    try {
+      const liveApp = await trackApplicationApi(query);
+      if (liveApp) {
+        setSearchedApp(liveApp);
+        setHasSearched(true);
+        setShowSlip(false);
+        setIsReuploadOpen(false);
+        return;
+      }
+    } catch {
+      // Remove whitespace and hyphens for flexible dual lookup fallback
+      const normalizedQuery = query.toLowerCase().replace(/[\s-]/g, '');
+
+      const match = applications.find((app) => {
+        const sId = app.studentId.toLowerCase().replace(/[\s-]/g, '');
+        const aId = app.id.toLowerCase().replace(/[\s-]/g, '');
+        return (
+          sId === normalizedQuery ||
+          aId === normalizedQuery ||
+          app.studentId.toLowerCase() === query.toLowerCase() ||
+          app.id.toLowerCase() === query.toLowerCase()
+        );
+      });
+
+      setSearchedApp(match || null);
+      setHasSearched(true);
+      setShowSlip(false);
+      setIsReuploadOpen(false);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Auto-search if initialSearchQuery provided
+  useEffect(() => {
+    if (isOpen && initialSearchQuery) {
+      setSearchTerm(initialSearchQuery);
+      performSearch(initialSearchQuery);
+    }
+  }, [isOpen, initialSearchQuery]);
 
   if (!isOpen) return null;
 
   // Search Handler
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return;
-
-    // Remove whitespace and hyphens for flexible dual lookup
-    const normalizedQuery = query.replace(/[\s-]/g, '');
-
-    const match = applications.find((app) => {
-      const sId = app.studentId.toLowerCase().replace(/[\s-]/g, '');
-      const aId = app.id.toLowerCase().replace(/[\s-]/g, '');
-      return (
-        sId === normalizedQuery ||
-        aId === normalizedQuery ||
-        app.studentId.toLowerCase() === query ||
-        app.id.toLowerCase() === query
-      );
-    });
-
-    setSearchedApp(match || null);
-    setHasSearched(true);
-    setShowSlip(false);
-    setIsReuploadOpen(false);
-    setReuploadSuccessMsg(null);
-    setReuploadError(null);
+    await performSearch(searchTerm);
   };
 
   // Status Badge Mapper
@@ -245,9 +279,12 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
   };
 
   // Submit Re-Uploaded Document
-  const handleConfirmReupload = (e: React.FormEvent) => {
+  const handleConfirmReupload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchedApp || !reuploadFile) return;
+
+    setIsSubmittingReupload(true);
+    setReuploadError(null);
 
     const docTargetId = selectedDocId || searchedApp.attachedDocuments[0]?.id;
     const formattedSize =
@@ -255,40 +292,64 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
         ? `${(reuploadFile.size / (1024 * 1024)).toFixed(1)} MB`
         : `${Math.round(reuploadFile.size / 1024)} KB`;
 
-    const updatedDocuments = searchedApp.attachedDocuments.map((doc) => {
-      if (doc.id === docTargetId) {
-        return {
-          ...doc,
-          verified: false,
-          fileSize: formattedSize,
-          uploadedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        };
-      }
-      return doc;
-    });
+    try {
+      const formData = new FormData();
+      formData.append('deficiencyFile', reuploadFile);
+      formData.append('docType', docTargetId || 'cor');
+      formData.append(
+        'studentRemarks',
+        `Replacement document submitted by applicant on ${new Date().toLocaleDateString()}`
+      );
 
-    const updatedApp: ScholarshipApplication = {
-      ...searchedApp,
-      status: 'Pending Review',
-      attachedDocuments: updatedDocuments,
-      evaluatorNotes: `Requirement replacement submitted by applicant on ${new Date().toLocaleDateString()}. Re-queued for SFAO evaluator screening.`,
-      lastUpdated: new Date().toISOString(),
-    };
+      const liveUpdated = await resolveDeficiencyApi(searchedApp.id, formData);
+      setSearchedApp(liveUpdated);
+      onUpdateApplication?.(liveUpdated);
+      setIsReuploadOpen(false);
+      setReuploadFile(null);
+      setReuploadSuccessMsg(
+        'Replacement document submitted successfully! Your application status has been returned to "Under Document Screening" for expedited evaluator review.'
+      );
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn('API deficiency resolution failed, saving locally:', errorMsg);
 
-    setSearchedApp(updatedApp);
-    onUpdateApplication?.(updatedApp);
-    setIsReuploadOpen(false);
-    setReuploadFile(null);
-    setReuploadSuccessMsg(
-      'Replacement document submitted successfully! Your application status has been returned to "Under Document Screening" for expedited evaluator review.'
-    );
+      const updatedDocuments = searchedApp.attachedDocuments.map((doc) => {
+        if (doc.id === docTargetId) {
+          return {
+            ...doc,
+            verified: false,
+            fileSize: formattedSize,
+            uploadedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          };
+        }
+        return doc;
+      });
+
+      const updatedApp: ScholarshipApplication = {
+        ...searchedApp,
+        status: 'Pending Review',
+        attachedDocuments: updatedDocuments,
+        evaluatorNotes: `Requirement replacement submitted by applicant on ${new Date().toLocaleDateString()}. Re-queued for SFAO evaluator screening.`,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      setSearchedApp(updatedApp);
+      onUpdateApplication?.(updatedApp);
+      setIsReuploadOpen(false);
+      setReuploadFile(null);
+      setReuploadSuccessMsg(
+        'Replacement document submitted successfully! Your application status has been returned to "Under Document Screening" for expedited evaluator review.'
+      );
+    } finally {
+      setIsSubmittingReupload(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-neutral-300 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
         {/* ================================================================= */}
-        {/* 1. CLEAN INSTITUTIONAL HEADER (Pure White #FFFFFF)               */}
+        {/* 1. CLEAN INSTITUTIONAL HEADER (Pure White) */}
         {/* ================================================================= */}
         <div className="bg-white px-5 sm:px-6 py-4 border-b border-neutral-200 flex items-center justify-between relative">
           <div className="flex items-center gap-3.5">
@@ -315,7 +376,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
             <X className="w-5 h-5" />
           </button>
           {/* Institutional red top accent line */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-[#CC181E]" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-maroon-primary" />
         </div>
 
         {/* ================================================================= */}
@@ -356,7 +417,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#CC181E] hover:bg-[#A00000] text-white shadow-sm transition-all"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-maroon-primary hover:bg-maroon-hover text-white shadow-sm transition-all"
               >
                 <Printer className="w-4 h-4" />
                 <span>Print Official Slip</span>
@@ -382,7 +443,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                 <div className="text-xs text-neutral-600 font-semibold">
                   Nagtahan, Sampaloc, Manila • Office of Student Financial Assistance (SFAO)
                 </div>
-                <div className="pt-2 text-sm font-black text-[#A00000] uppercase tracking-wider">
+                <div className="pt-2 text-sm font-black text-maroon-primary uppercase tracking-wider">
                   Official Scholarship Award & Claim Acknowledgment Slip
                 </div>
               </div>
@@ -393,7 +454,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                   <div className="text-[10px] font-bold text-neutral-500 uppercase">
                     Control Reference ID:
                   </div>
-                  <div className="text-sm font-mono font-black text-[#A00000]">
+                  <div className="text-sm font-mono font-black text-maroon-primary">
                     {searchedApp.id}
                   </div>
                   <div className="text-[10px] text-neutral-500">
@@ -473,7 +534,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                   <div className="p-3 space-y-2 bg-neutral-50/50">
                     <div>
                       <span className="text-neutral-500 block text-[10px] uppercase">Awarded Scholarship Grant:</span>
-                      <span className="font-bold text-[#A00000] text-sm">{searchedApp.program}</span>
+                      <span className="font-bold text-maroon-primary text-sm">{searchedApp.program}</span>
                     </div>
                     <div>
                       <span className="text-neutral-500 block text-[10px] uppercase">Certified Semestral Stipend:</span>
@@ -554,15 +615,25 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                     placeholder="Enter EARIST Student No. (e.g. 2023-01849-MN-0) or Reference No. (e.g. APP-2026-1041)..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full text-xs px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#CC181E] focus:border-transparent font-medium text-neutral-900 placeholder:text-neutral-400"
+                    className="w-full text-xs px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-maroon-primary focus:border-transparent font-medium text-neutral-900 placeholder:text-neutral-400"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 rounded-lg text-xs font-bold bg-[#CC181E] hover:bg-[#A00000] text-white shadow-xs transition-all flex-shrink-0"
+                  disabled={isSearching}
+                  className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 rounded-lg text-xs font-bold bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-all flex-shrink-0 cursor-pointer disabled:opacity-60"
                 >
-                  <Search className="w-3.5 h-3.5" />
-                  <span>Search Application</span>
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Tracking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Search Application</span>
+                    </>
+                  )}
                 </button>
               </div>
               <p className="text-[11px] text-neutral-500">
@@ -599,7 +670,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                       <span className="text-[10px] font-mono uppercase text-neutral-500 tracking-wider">
                         Application Reference No.
                       </span>
-                      <div className="text-base font-mono font-black text-[#A00000]">
+                      <div className="text-base font-mono font-black text-maroon-primary">
                         {searchedApp.id}
                       </div>
                     </div>
@@ -691,7 +762,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                             else if (searchedApp.attachedDocuments[0])
                               setSelectedDocId(searchedApp.attachedDocuments[0].id);
                           }}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#CC181E] hover:bg-[#A00000] text-white shadow-xs transition-all"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-all cursor-pointer"
                         >
                           <Upload className="w-3.5 h-3.5" />
                           <span>Re-Upload Missing Requirement</span>
@@ -739,7 +810,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                             type="file"
                             accept=".pdf,image/png"
                             onChange={handleFileChange}
-                            className="block w-full text-xs text-neutral-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-[#CC181E] file:text-white hover:file:bg-[#A00000] file:cursor-pointer border border-neutral-300 rounded-lg bg-neutral-50 p-1"
+                            className="block w-full text-xs text-neutral-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-maroon-primary file:text-white hover:file:bg-maroon-hover file:cursor-pointer border border-neutral-300 rounded-lg bg-neutral-50 p-1"
                           />
                         </div>
 
@@ -782,15 +853,24 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                           </button>
                           <button
                             type="submit"
-                            disabled={!reuploadFile}
+                            disabled={!reuploadFile || isSubmittingReupload}
                             className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-white shadow-xs transition-all ${
-                              reuploadFile
-                                ? 'bg-emerald-700 hover:bg-emerald-800'
-                                : 'bg-neutral-400 cursor-not-allowed'
+                              reuploadFile && !isSubmittingReupload
+                                ? 'bg-emerald-700 hover:bg-emerald-800 cursor-pointer'
+                                : 'bg-neutral-400 cursor-not-allowed opacity-60'
                             }`}
                           >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Confirm & Submit Replacement</span>
+                            {isSubmittingReupload ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>Uploading Replacement...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Confirm & Submit Replacement</span>
+                              </>
+                            )}
                           </button>
                         </div>
                       </form>
@@ -818,7 +898,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowSlip(true)}
-                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#CC181E] hover:bg-[#A00000] text-white shadow-xs transition-all flex-shrink-0"
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-all flex-shrink-0 cursor-pointer"
                       >
                         <Printer className="w-3.5 h-3.5" />
                         <span>Print / Download Acknowledgment Slip</span>
@@ -1080,7 +1160,7 @@ export const TrackApplicationModal: React.FC<TrackApplicationModalProps> = ({
               <div className="space-y-4 py-2">
                 <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/70 space-y-3">
                   <div className="flex items-center gap-2 text-neutral-800 font-bold text-xs uppercase tracking-wide">
-                    <ShieldCheck className="w-4 h-4 text-[#CC181E]" />
+                    <ShieldCheck className="w-4 h-4 text-maroon-primary" />
                     <span>Official EARIST SFAO Online Verification Portal</span>
                   </div>
                   <p className="text-xs text-neutral-600 leading-relaxed">

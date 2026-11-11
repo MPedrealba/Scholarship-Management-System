@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { EaristLogo } from './EaristLogo';
 import { GovBadges } from './GovBadges';
+import { NotificationBell } from './NotificationBell';
 import { Menu, X, ChevronDown, Lock, ShieldCheck, Award } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
+export type AppView = 'home' | 'scholarships' | 'login' | 'evaluator-dashboard' | 'admin-dashboard';
+
 interface HeaderNavProps {
-  currentView: 'home' | 'scholarships' | 'login';
-  onNavigate: (view: 'home' | 'scholarships' | 'login') => void;
+  currentView: AppView;
+  onNavigate: (view: AppView) => void;
 }
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate }) => {
@@ -50,7 +53,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
 
   return (
     <header ref={navRef} className="sticky top-0 z-40 w-full bg-white border-b border-neutral-200 shadow-xs">
-      {/* 1. TOP ROW: Pure White Background (#FFFFFF) */}
+      {/* 1. TOP ROW: Pure White Background */}
       <div className="bg-white border-b border-neutral-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between gap-4">
@@ -61,7 +64,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
               title="EARIST Home"
             >
               <EaristLogo size={52} showText={false} className="flex-shrink-0" />
-              <span className="text-[#CC181E] font-bold text-xs sm:text-sm md:text-base lg:text-lg tracking-tight uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+              <span className="text-maroon-primary font-bold text-xs sm:text-sm md:text-base lg:text-lg tracking-tight uppercase whitespace-nowrap overflow-hidden text-ellipsis">
                 EULOGIO &apos;AMANG&apos; RODRIGUEZ INSTITUTE OF SCIENCE AND TECHNOLOGY
               </span>
             </div>
@@ -72,42 +75,53 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
 
               {/* RBAC Session Status & Navigation */}
               <div className="pl-3 border-l border-neutral-200 flex items-center gap-2">
+                <NotificationBell />
                 {currentUser.role === 'student' ? (
                   <button
                     type="button"
                     onClick={() => onNavigate('login')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#800000] text-white hover:bg-red-900 shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-maroon-primary text-white hover:bg-maroon-hover shadow-2xs transition-all cursor-pointer whitespace-nowrap"
                     title="Sign in with your EARIST faculty, evaluator, or administrative credentials"
                   >
-                    <Lock className="w-3.5 h-3.5 text-amber-300" />
-                    <span>[ Evaluator / Admin Login ]</span>
+                    <Lock className="w-3.5 h-3.5 text-gold-light" />
+                    <span>Institutional Login</span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-2 bg-neutral-50 px-2.5 py-1 rounded-lg border border-neutral-200">
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       {currentUser.role === 'superadmin' ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-900">
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('admin-dashboard')}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 hover:text-purple-700 transition-colors cursor-pointer"
+                          title="Open Super Admin Dashboard"
+                        >
                           <Award className="w-3.5 h-3.5 text-purple-600" />
-                          <span>Logged in: Super Admin</span>
-                        </span>
+                          <span>Admin Dashboard</span>
+                        </button>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-900">
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('evaluator-dashboard')}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-emerald-900 hover:text-emerald-700 transition-colors cursor-pointer"
+                          title={`Open ${currentUser.college || 'CIT'} Evaluator Workstation`}
+                        >
                           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Logged in: {currentUser.title}</span>
-                        </span>
+                          <span>Evaluator Workstation ({currentUser.college || 'CIT'})</span>
+                        </button>
                       )}
                     </div>
                     <button
                       type="button"
                       onClick={() => {
                         logoutToStudent();
-                        onNavigate('login');
+                        onNavigate('home');
                       }}
-                      className="text-[11px] font-semibold text-[#800000] hover:text-red-900 hover:underline px-1.5 py-0.5 rounded border border-neutral-300 bg-white cursor-pointer"
-                      title="Switch active role or log out"
+                      className="text-[11px] font-semibold text-maroon-primary hover:text-maroon-hover hover:bg-maroon-subtle px-2 py-0.5 rounded border border-neutral-300 bg-white cursor-pointer transition-colors"
+                      title="Sign out of administrative session"
                     >
-                      [ Log Out / Switch ]
+                      Sign Out
                     </button>
                   </div>
                 )}
@@ -119,7 +133,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-1.5 text-[#CC181E] hover:bg-neutral-50 rounded focus:outline-none"
+                className="p-1.5 text-maroon-primary hover:bg-neutral-50 rounded focus:outline-none"
                 aria-label="Toggle navigation menu"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -133,12 +147,12 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
       <nav className="bg-white hidden lg:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-11">
-            <div className="flex items-center space-x-3 xl:space-x-4 text-xs font-bold text-[#CC181E] tracking-wider uppercase">
+            <div className="flex items-center space-x-3 xl:space-x-4 text-xs font-bold text-maroon-primary tracking-wider uppercase">
               {/* 1. PRESIDENT'S CORNER */}
               <button
                 type="button"
                 onClick={() => handleLinkClick('#announcements')}
-                className="hover:text-red-800 transition-colors whitespace-nowrap"
+                className="hover:text-maroon-hover transition-colors whitespace-nowrap"
               >
                 PRESIDENT&apos;S CORNER
               </button>
@@ -152,7 +166,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('aboutUs')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'aboutUs'}
                 >
                   <span>ABOUT US</span>
@@ -163,28 +177,28 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Vision, Mission &amp; Goals
                     </a>
                     <a
                       href="#announcements"
                       onClick={() => handleLinkClick('#announcements')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Quality Policy (ISO 9001:2015)
                     </a>
                     <a
                       href="#announcements"
                       onClick={() => handleLinkClick('#announcements')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Institutional History (1945)
                     </a>
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Citizen&apos;s Charter
                     </a>
@@ -201,7 +215,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('aboutEarist')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'aboutEarist'}
                 >
                   <span>ABOUT EARIST</span>
@@ -212,21 +226,21 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <a
                       href="#announcements"
                       onClick={() => handleLinkClick('#announcements')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Board of Trustees
                     </a>
                     <a
                       href="#announcements"
                       onClick={() => handleLinkClick('#announcements')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Manila Main Campus
                     </a>
                     <a
                       href="#announcements"
                       onClick={() => handleLinkClick('#announcements')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Cavite Campus
                     </a>
@@ -243,7 +257,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('studentServices')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'studentServices'}
                 >
                   <span>STUDENT SERVICES</span>
@@ -254,21 +268,21 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <button
                       type="button"
                       onClick={() => handleLinkClick('scholarships')}
-                      className="w-full text-left px-4 py-1.5 text-xs font-bold text-[#CC181E] hover:bg-red-50"
+                      className="w-full text-left px-4 py-1.5 text-xs font-bold text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Scholarship &amp; Financial Assistance (SFAO)
                     </button>
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Office of Student Affairs (OSA)
                     </a>
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Registrar &amp; Student Records
                     </a>
@@ -280,7 +294,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
               <button
                 type="button"
                 onClick={() => onNavigate('scholarships')}
-                className={`hover:text-red-800 transition-colors whitespace-nowrap font-bold ${
+                className={`hover:text-maroon-hover transition-colors whitespace-nowrap font-bold ${
                   currentView === 'scholarships' ? 'underline underline-offset-4 decoration-2' : ''
                 }`}
                 title="EARIST Scholarship Portal"
@@ -297,7 +311,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('instruction')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'instruction'}
                 >
                   <span>INSTRUCTION</span>
@@ -308,49 +322,49 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       College of Engineering (CEN)
                     </a>
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       College of Industrial Technology (CIT)
                     </a>
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       College of Arts and Sciences (CAS)
                     </a>
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       College of Business Administration (CBA)
                     </a>
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       College of Education (CED)
                     </a>
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Architecture &amp; Fine Arts (CAFA)
                     </a>
                     <a
                       href="#colleges"
                       onClick={() => handleLinkClick('#colleges')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Hospitality Management (CHM)
                     </a>
@@ -367,7 +381,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('research')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'research'}
                 >
                   <span>RESEARCH</span>
@@ -378,14 +392,14 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Office of Research Services
                     </a>
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Research Journal
                     </a>
@@ -402,7 +416,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('extension')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'extension'}
                 >
                   <span>EXTENSION</span>
@@ -413,14 +427,14 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Community Extension Services
                     </a>
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Outreach Programs
                     </a>
@@ -437,7 +451,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('applyOnline')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'applyOnline'}
                 >
                   <span>APPLY ONLINE</span>
@@ -448,14 +462,14 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <a
                       href="#services"
                       onClick={() => handleLinkClick('#services')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Online Admission Portal
                     </a>
                     <button
                       type="button"
                       onClick={() => handleLinkClick('scholarships')}
-                      className="w-full text-left px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="w-full text-left px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Scholarship Application
                     </button>
@@ -467,7 +481,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
               <a
                 href="#services"
                 onClick={() => handleLinkClick('#services')}
-                className="hover:text-red-800 transition-colors whitespace-nowrap"
+                className="hover:text-maroon-hover transition-colors whitespace-nowrap"
               >
                 LIBRARY
               </a>
@@ -481,7 +495,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                 <button
                   type="button"
                   onClick={() => toggleDropdown('bac')}
-                  className="flex items-center gap-0.5 hover:text-red-800 transition-colors whitespace-nowrap"
+                  className="flex items-center gap-0.5 hover:text-maroon-hover transition-colors whitespace-nowrap"
                   aria-expanded={activeDropdown === 'bac'}
                 >
                   <span>BIDS AND AWARDS</span>
@@ -492,14 +506,14 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     <a
                       href="#announcements"
                       onClick={() => handleLinkClick('#announcements')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Invitation to Bid
                     </a>
                     <a
                       href="#announcements"
                       onClick={() => handleLinkClick('#announcements')}
-                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-[#CC181E] hover:bg-red-50"
+                      className="block px-4 py-1.5 text-xs font-semibold text-neutral-700 hover:text-maroon-primary hover:bg-maroon-subtle"
                     >
                       Procurement Monitoring
                     </a>
@@ -511,7 +525,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
               <a
                 href="#services"
                 onClick={() => handleLinkClick('#services')}
-                className="hover:text-red-800 transition-colors whitespace-nowrap"
+                className="hover:text-maroon-hover transition-colors whitespace-nowrap"
               >
                 SDG
               </a>
@@ -534,36 +548,63 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
                     setMobileMenuOpen(false);
                     onNavigate('login');
                   }}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-[#800000] text-white hover:bg-red-900 shadow-2xs"
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-maroon-primary text-white hover:bg-maroon-hover shadow-2xs"
                 >
-                  <Lock className="w-3.5 h-3.5 text-amber-300" />
-                  <span>[ Evaluator / Admin Login ]</span>
+                  <Lock className="w-3.5 h-3.5 text-gold-light" />
+                  <span>Institutional Login</span>
                 </button>
               ) : (
-                <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs font-bold text-neutral-800">
-                      Logged in: {currentUser.title}
-                    </span>
+                <div className="p-2.5 rounded-lg bg-neutral-50 border border-neutral-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-xs font-bold text-neutral-800">
+                        {currentUser.title}
+                      </span>
+                    </div>
                   </div>
+                  {currentUser.role === 'superadmin' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onNavigate('admin-dashboard');
+                      }}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-200"
+                    >
+                      <Award className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Open Super Admin Dashboard</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onNavigate('evaluator-dashboard');
+                      }}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Open Evaluator Workstation ({currentUser.college || 'CIT'})</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
                       logoutToStudent();
-                      onNavigate('login');
+                      onNavigate('home');
                     }}
-                    className="w-full text-center text-xs font-semibold text-[#800000] bg-white py-1 rounded border border-neutral-300"
+                    className="w-full text-center text-xs font-semibold text-maroon-primary hover:text-maroon-hover bg-white hover:bg-maroon-subtle py-1.5 rounded border border-neutral-300"
                   >
-                    [ Log Out / Switch ]
+                    Sign Out
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="space-y-1 text-xs font-bold text-[#CC181E] uppercase tracking-wider">
+          <div className="space-y-1 text-xs font-bold text-maroon-primary uppercase tracking-wider">
             <button
               type="button"
               onClick={() => handleLinkClick('#announcements')}
@@ -596,7 +637,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ currentView, onNavigate })
               type="button"
               onClick={() => handleLinkClick('scholarships')}
               className={`w-full text-left px-2 py-1.5 rounded font-black ${
-                currentView === 'scholarships' ? 'bg-red-50' : 'hover:bg-neutral-50'
+                currentView === 'scholarships' ? 'bg-maroon-subtle text-maroon-primary' : 'hover:bg-neutral-50'
               }`}
             >
               SCHOLARSHIP PORTAL

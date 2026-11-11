@@ -43,7 +43,7 @@ export const EaristLogo: React.FC<EaristLogoProps> = ({
           </div>
           <span
             className={`text-xs sm:text-[13px] font-bold tracking-tight leading-tight ${
-              lightMode ? 'text-amber-300' : 'text-[#800000]'
+              lightMode ? 'text-gold-light' : 'text-maroon-primary'
             }`}
           >
             Institute of Science and Technology
@@ -58,7 +58,7 @@ export const EaristLogo: React.FC<EaristLogoProps> = ({
             </span>
             <span
               className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider ${
-                lightMode ? 'bg-amber-400 text-maroon-900' : 'bg-red-100 text-[#800000]'
+                lightMode ? 'bg-gold-primary text-maroon-deep' : 'bg-maroon-subtle text-maroon-primary'
               }`}
             >
               State College

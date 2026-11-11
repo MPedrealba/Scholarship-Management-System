@@ -66,11 +66,24 @@ export const SUPER_ADMIN_USER: AuthUser = {
   name: 'Dr. Mario M. Santos',
   email: 'sfao.director@earist.edu.ph',
   title: 'Super Admin (SFAO Director)',
+  employeeId: 'EMP-SFAO-001',
+  collegeName: 'Office of Student Financial Assistance',
+  contactNumber: '+63 (02) 8716-6273',
+  lastLogin: 'Nov 11, 2026, 08:30 AM',
 };
 
 export const DEFAULT_STUDENT_USER: AuthUser = {
   role: 'student',
-  name: 'Student Applicant',
-  email: 'applicant.portal@earist.edu.ph',
+  name: 'John Carlo V. Mendoza',
+  email: 'mendoza.jc@earist.edu.ph',
   title: 'Student Applicant',
+  studentId: '2023-01482-MN-0',
+  college: 'CIT',
+  collegeName: 'College of Industrial Technology',
+  course: 'BS in Information Technology',
+  yearLevel: '4th Year, Section A',
+  contactNumber: '+63 917 842 1092',
+  personalEmail: 'johncarlo.mendoza@gmail.com',
+  homeAddress: '1482 Pureza St., Sampaloc, Manila',
+  lastLogin: 'Nov 11, 2026, 09:15 AM',
 };

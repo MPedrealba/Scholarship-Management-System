@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import type {
   ScholarshipApplication,
   CollegeCode,
@@ -13,6 +14,7 @@ import {
 } from '../../data/mockData';
 import { formatPHP } from '../../utils/exportUtils';
 import { EaristLogo } from '../common/EaristLogo';
+import { fetchQuotasApi, submitApplicationApi, type QuotaRecord } from '../../utils/api';
 import {
   X,
   Upload,
@@ -22,6 +24,7 @@ import {
   Trash2,
   Printer,
   ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 
 interface SubmitApplicationModalProps {
@@ -122,6 +125,10 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
   const [fileErrors, setFileErrors] = useState<Partial<Record<MandatoryDocKey, string>>>({});
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [globalBannerError, setGlobalBannerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Quota Management State
+  const [quotas, setQuotas] = useState<QuotaRecord[]>([]);
 
   // Success Confirmation State
   const [submittedApp, setSubmittedApp] = useState<ScholarshipApplication | null>(null);
@@ -133,6 +140,21 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
     indigency: useRef<HTMLInputElement>(null),
     validId: useRef<HTMLInputElement>(null),
   };
+
+  // Fetch real-time quota slots on modal open
+  useEffect(() => {
+    if (isOpen) {
+      fetchQuotasApi()
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setQuotas(data);
+          }
+        })
+        .catch((err) => {
+          console.warn('Unable to load quotas from server, using local defaults:', err);
+        });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -217,6 +239,64 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
   // GWA Validation
   const gwaNum = parseFloat(formData.gwa);
   const isGwaValid = !isNaN(gwaNum) && gwaNum >= 1.0 && gwaNum <= 5.0;
+  const monthlyIncomeNum = parseFloat(formData.monthlyHouseholdIncome) || 0;
+
+  // Real-time Academic & Financial Eligibility Pre-Screening (Feature 1)
+  const isStemProgram = (college: CollegeCode, course: string): boolean => {
+    if (college === 'CEN' || college === 'CIT') return true;
+    const stemKeywords = [
+      'computer science',
+      'applied physics',
+      'mathematics',
+      'science',
+      'architecture',
+      'technology',
+      'engineering',
+    ];
+    const cLower = course.toLowerCase();
+    return stemKeywords.some((k) => cLower.includes(k));
+  };
+
+  const getEligibilityCheck = (): { eligible: boolean; advisory?: string } => {
+    if (!formData.program) return { eligible: true };
+
+    if (formData.program === 'Academic Excellence Grant') {
+      if (isGwaValid && gwaNum > 1.75) {
+        return {
+          eligible: false,
+          advisory: `Academic Excellence Grant requires a General Weighted Average (GWA) of 1.75 or better (Dean's/President's List honors). Your entered GWA (${gwaNum.toFixed(2)}) does not meet the qualification standard for this grant.`,
+        };
+      }
+    }
+
+    if (formData.program === 'CHED TDP' || formData.program === 'Tertiary Education Subsidy (TES)') {
+      if (monthlyIncomeNum > 33333) {
+        return {
+          eligible: false,
+          advisory: `${formData.program} statutory low-income mandate requires monthly household income not exceeding PHP 33,333. Your declared monthly income (${formatPHP(monthlyIncomeNum)}) exceeds this statutory threshold.`,
+        };
+      }
+    }
+
+    if (formData.program === 'DOST-SEI Grant') {
+      if (isGwaValid && gwaNum > 2.00) {
+        return {
+          eligible: false,
+          advisory: `DOST-SEI Science & Technology Grant requires a minimum GWA of 2.00 or better. Your entered GWA (${gwaNum.toFixed(2)}) does not qualify for DOST-SEI endorsement.`,
+        };
+      }
+      if (!isStemProgram(formData.college, formData.course)) {
+        return {
+          eligible: false,
+          advisory: `DOST-SEI Grant is strictly restricted to recognized Priority Science, Technology, Engineering, and Mathematics (STEM) degree programs. Enrolled course "${formData.course}" (${formData.college}) does not qualify under DOST priority curricula.`,
+        };
+      }
+    }
+
+    return { eligible: true };
+  };
+
+  const eligibilityCheck = getEligibilityCheck();
 
   // Text inputs completeness
   const isTextValid =
@@ -238,12 +318,28 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
     uploadedFiles.validId !== null;
 
   // Form Overall Validity (Strict Submission Blocking)
-  const isFormValid = isTextValid && areAllDocsAttached;
+  const isFormValid = isTextValid && areAllDocsAttached && eligibilityCheck.eligible;
+
+  // Check if a scholarship grant quota is locked or full
+  const isGrantClosed = (grantName: string): boolean => {
+    const q = quotas.find(
+      (item) => item.grantType.toLowerCase() === grantName.toLowerCase()
+    );
+    if (!q) return false;
+    return q.isLocked || q.allocatedSlots >= q.totalSlots;
+  };
 
   // Form Submit Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAttemptedSubmit(true);
+
+    if (!eligibilityCheck.eligible) {
+      setGlobalBannerError(
+        eligibilityCheck.advisory || 'Student does not meet eligibility requirements for this grant.'
+      );
+      return;
+    }
 
     if (!isFormValid) {
       setGlobalBannerError(
@@ -252,71 +348,135 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
       return;
     }
 
-    const generatedId = `APP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const stipend = PROGRAM_STIPENDS[formData.program] || 15000;
-    const evaluator = COLLEGE_EVALUATORS[formData.college] || 'SFAO General Evaluator';
-    const submissionTime = new Date().toISOString();
+    if (isGrantClosed(formData.program)) {
+      setGlobalBannerError(
+        `Intake Closed: The quota limit for ${formData.program} has been reached. Please choose an open scholarship grant.`
+      );
+      return;
+    }
 
-    // Construct attached documents using real uploaded file records
-    const attachedDocs: DocumentChecklist[] = [
-      {
-        id: 'doc-cor',
-        name: uploadedFiles.cor ? uploadedFiles.cor.name : 'Certificate of Registration (COR)',
-        verified: false,
-        required: true,
-        uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        fileSize: uploadedFiles.cor ? uploadedFiles.cor.formattedSize : '1.4 MB',
-      },
-      {
-        id: 'doc-grades',
-        name: uploadedFiles.grades ? uploadedFiles.grades.name : 'Certified Grade Slip',
-        verified: false,
-        required: true,
-        uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        fileSize: uploadedFiles.grades ? uploadedFiles.grades.formattedSize : '950 KB',
-      },
-      {
-        id: 'doc-indigency',
-        name: uploadedFiles.indigency ? uploadedFiles.indigency.name : 'Barangay Certificate of Indigency',
-        verified: false,
-        required: true,
-        uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        fileSize: uploadedFiles.indigency ? uploadedFiles.indigency.formattedSize : '640 KB',
-      },
-      {
-        id: 'doc-validId',
-        name: uploadedFiles.validId ? uploadedFiles.validId.name : 'Valid Student ID / Photo',
-        verified: false,
-        required: true,
-        uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        fileSize: uploadedFiles.validId ? uploadedFiles.validId.formattedSize : '780 KB',
-      },
-    ];
+    setIsSubmitting(true);
+    setGlobalBannerError(null);
 
-    const newApplication: ScholarshipApplication = {
-      id: generatedId,
-      studentId: formData.studentId.trim(),
-      studentName: formData.studentName.trim(),
-      college: formData.college,
-      collegeName: COLLEGE_NAMES[formData.college],
-      course: formData.course,
-      yearAndSection: formData.yearAndSection,
-      program: formData.program,
-      submissionDate: submissionTime,
-      status: 'Pending Review',
-      assignedEvaluator: evaluator,
-      gwa: gwaNum,
-      monthlyHouseholdIncome: parseFloat(formData.monthlyHouseholdIncome) || 0,
-      contactNumber: formData.contactNumber.trim(),
-      email: formData.email.trim() || `${formData.studentId.toLowerCase().replace(/[^a-z0-9]/g, '')}@earist.edu.ph`,
-      stipendAmount: stipend,
-      evaluatorNotes: 'Direct online intake via SFAO Student Application Portal. Verified attachments pending committee review.',
-      attachedDocuments: attachedDocs,
-      lastUpdated: submissionTime,
-    };
+    try {
+      const payload = new FormData();
+      payload.append('studentNumber', formData.studentId.trim());
+      payload.append('studentName', formData.studentName.trim());
+      payload.append('college', formData.college);
+      payload.append('degreeProgram', formData.course.trim());
+      payload.append('yearAndSection', formData.yearAndSection.trim());
+      payload.append('scholarshipGrant', formData.program);
+      payload.append('grantType', formData.program);
+      payload.append('academicTerm', '1st Sem A.Y. 2026-2027');
+      payload.append('gwa', String(gwaNum));
+      payload.append('monthlyIncome', formData.monthlyHouseholdIncome.trim());
+      payload.append('annualIncome', String(monthlyIncomeNum * 12));
+      payload.append('contactMobile', formData.contactNumber.trim());
+      payload.append('contactNumber', formData.contactNumber.trim());
+      payload.append(
+        'email',
+        formData.email.trim() || `${formData.studentId.toLowerCase().replace(/[^a-z0-9]/g, '')}@earist.edu.ph`
+      );
 
-    onSubmitSuccess(newApplication);
-    setSubmittedApp(newApplication);
+      if (uploadedFiles.cor?.file) payload.append('doc_cor', uploadedFiles.cor.file);
+      if (uploadedFiles.grades?.file) payload.append('doc_grades', uploadedFiles.grades.file);
+      if (uploadedFiles.indigency?.file) payload.append('doc_indigency', uploadedFiles.indigency.file);
+      if (uploadedFiles.validId?.file) payload.append('doc_validId', uploadedFiles.validId.file);
+
+      const res = await submitApplicationApi(payload);
+      if (res && res.application) {
+        onSubmitSuccess(res.application);
+        setSubmittedApp(res.application);
+        return;
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+
+      // Duplicate Application Error Detection (Feature 2)
+      if (
+        errorMsg.includes('already exists') ||
+        errorMsg.includes('Conflict') ||
+        errorMsg.includes('409') ||
+        errorMsg.includes('current semester')
+      ) {
+        setGlobalBannerError(errorMsg);
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.warn('API submission failed, falling back to local storage handler:', errorMsg);
+      // Fallback local creation
+      const generatedId = `APP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      const stipend = PROGRAM_STIPENDS[formData.program] || 15000;
+      const evaluator = COLLEGE_EVALUATORS[formData.college] || 'SFAO General Evaluator';
+      const submissionTime = new Date().toISOString();
+
+      const attachedDocs: DocumentChecklist[] = [
+        {
+          id: 'doc-cor',
+          name: uploadedFiles.cor ? uploadedFiles.cor.name : 'Certificate of Registration (COR)',
+          verified: false,
+          required: true,
+          uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          fileSize: uploadedFiles.cor ? uploadedFiles.cor.formattedSize : '1.4 MB',
+        },
+        {
+          id: 'doc-grades',
+          name: uploadedFiles.grades ? uploadedFiles.grades.name : 'Certified Grade Slip',
+          verified: false,
+          required: true,
+          uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          fileSize: uploadedFiles.grades ? uploadedFiles.grades.formattedSize : '950 KB',
+        },
+        {
+          id: 'doc-indigency',
+          name: uploadedFiles.indigency ? uploadedFiles.indigency.name : 'Barangay Certificate of Indigency',
+          verified: false,
+          required: true,
+          uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          fileSize: uploadedFiles.indigency ? uploadedFiles.indigency.formattedSize : '640 KB',
+        },
+        {
+          id: 'doc-validId',
+          name: uploadedFiles.validId ? uploadedFiles.validId.name : 'Valid Student ID / Photo',
+          verified: false,
+          required: true,
+          uploadedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          fileSize: uploadedFiles.validId ? uploadedFiles.validId.formattedSize : '780 KB',
+        },
+      ];
+
+      const fallbackApp: ScholarshipApplication = {
+        id: generatedId,
+        studentId: formData.studentId.trim(),
+        studentName: formData.studentName.trim(),
+        college: formData.college,
+        collegeName: COLLEGE_NAMES[formData.college],
+        course: formData.course,
+        yearAndSection: formData.yearAndSection,
+        program: formData.program,
+        submissionDate: submissionTime,
+        status: 'Pending Review',
+        assignedEvaluator: evaluator,
+        gwa: gwaNum,
+        monthlyHouseholdIncome: monthlyIncomeNum,
+        contactNumber: formData.contactNumber.trim(),
+        email:
+          formData.email.trim() ||
+          `${formData.studentId.toLowerCase().replace(/[^a-z0-9]/g, '')}@earist.edu.ph`,
+        stipendAmount: stipend,
+        academicTerm: '1st Sem A.Y. 2026-2027',
+        evaluatorNotes:
+          'Direct online intake via SFAO Student Application Portal. Verified attachments pending committee review.',
+        attachedDocuments: attachedDocs,
+        lastUpdated: submissionTime,
+      };
+
+      onSubmitSuccess(fallbackApp);
+      setSubmittedApp(fallbackApp);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePrintReceipt = () => {
@@ -345,7 +505,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                 <h2 className="text-base sm:text-lg font-black text-neutral-900 tracking-tight font-sans">
                   New Scholarship Application Filing
                 </h2>
-                <span className="hidden sm:inline-block text-[10px] font-bold text-[#A00000] bg-red-50 border border-red-200 px-2 py-0.5 rounded uppercase">
+                <span className="hidden sm:inline-block text-[10px] font-bold text-maroon-primary bg-maroon-subtle border border-red-200 px-2 py-0.5 rounded uppercase">
                   A.Y. 2026–2027 • 1st Sem
                 </span>
               </div>
@@ -371,14 +531,36 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
         <div className="p-5 sm:p-6 max-h-[75vh] overflow-y-auto">
           {submittedApp ? (
             /* ========================================================= */
-            /* SUCCESS SUBMISSION RECEIPT VIEW                           */
+            /* SUCCESS SUBMISSION RECEIPT VIEW WITH QR CODE (FEATURE 3)   */
             /* ========================================================= */
-            <div className="space-y-6 text-center py-4">
-              <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle2 className="w-8 h-8" />
+            <div id="official-sfao-receipt" className="space-y-5 text-center py-2">
+              <style>{`
+                @media print {
+                  body * {
+                    visibility: hidden !important;
+                  }
+                  #official-sfao-receipt, #official-sfao-receipt * {
+                    visibility: visible !important;
+                  }
+                  #official-sfao-receipt {
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 24px !important;
+                  }
+                  .print\\:hidden {
+                    display: none !important;
+                  }
+                }
+              `}</style>
+
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-inner print:hidden">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 print:hidden">
                 <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wider">
                   Application Successfully Filed
                 </span>
@@ -390,77 +572,139 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                 </p>
               </div>
 
-              {/* Receipt Summary Card */}
-              <div className="bg-neutral-50 p-5 rounded-xl border border-neutral-200 text-left space-y-3.5 max-w-lg mx-auto text-xs">
-                <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
-                  <div>
-                    <span className="text-[10px] text-neutral-500 font-bold uppercase block">
-                      Application Reference No.
+              {/* Printable Official Receipt Card */}
+              <div className="bg-white p-6 rounded-xl border border-neutral-300 text-left space-y-4 max-w-xl mx-auto shadow-xs">
+                {/* Institutional Header */}
+                <div className="flex items-center justify-between pb-4 border-b border-neutral-200 gap-3">
+                  <div className="flex items-center gap-3">
+                    <EaristLogo size={42} showText={false} className="flex-shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-tight text-neutral-900">
+                        Eulogio &quot;Amang&quot; Rodriguez Institute of Science and Technology
+                      </h4>
+                      <p className="text-[11px] text-maroon-primary font-semibold">
+                        Office of Student Financial Assistance (SFAO)
+                      </p>
+                      <p className="text-[10px] text-neutral-500">
+                        Official Scholarship Application Filing Receipt
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right flex flex-col items-end flex-shrink-0">
+                    <span className="text-[9px] text-neutral-500 uppercase font-bold">
+                      Reference Code
                     </span>
-                    <span className="text-base font-mono font-bold text-[#A00000]">
+                    <span className="text-base font-mono font-black text-maroon-primary">
                       {submittedApp.id}
                     </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-neutral-500 font-bold uppercase block">
-                      Tracking Status
-                    </span>
-                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      Pending Review
+                    <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 mt-1">
+                      {submittedApp.academicTerm || '1st Sem A.Y. 2026-2027'}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-neutral-500 block text-[11px]">Applicant Name:</span>
-                    <strong className="text-neutral-900">{submittedApp.studentName}</strong>
+                {/* Details Grid & QR Code */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 items-center">
+                  <div className="sm:col-span-2 grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+                        Applicant Name
+                      </span>
+                      <strong className="text-neutral-900 text-xs block">{submittedApp.studentName}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+                        Student Number
+                      </span>
+                      <strong className="font-mono text-neutral-900 text-xs block">{submittedApp.studentId}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+                        College / Department
+                      </span>
+                      <span className="text-neutral-800 text-xs block font-medium">{submittedApp.collegeName}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+                        Degree Program
+                      </span>
+                      <span className="text-neutral-800 text-xs block truncate" title={submittedApp.course}>
+                        {submittedApp.course}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+                        Scholarship Grant
+                      </span>
+                      <strong className="text-maroon-primary text-xs block">{submittedApp.program}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+                        Semestral Grant
+                      </span>
+                      <strong className="text-neutral-900 text-xs block">{formatPHP(submittedApp.stipendAmount)}</strong>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-[10px] text-neutral-500 uppercase font-bold block">
+                        Submission Timestamp
+                      </span>
+                      <span className="text-neutral-700 font-mono text-[11px] block">
+                        {new Date(submittedApp.submissionDate).toLocaleString('en-US', {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-neutral-500 block text-[11px]">Student ID:</span>
-                    <strong className="font-mono text-neutral-900">{submittedApp.studentId}</strong>
-                  </div>
-                  <div>
-                    <span className="text-neutral-500 block text-[11px]">Enrolled Course:</span>
-                    <span className="text-neutral-800 font-medium">{submittedApp.course}</span>
-                  </div>
-                  <div>
-                    <span className="text-neutral-500 block text-[11px]">Scholarship Grant:</span>
-                    <strong className="text-[#A00000]">{submittedApp.program}</strong>
-                  </div>
-                  <div>
-                    <span className="text-neutral-500 block text-[11px]">Semestral Benefit:</span>
-                    <strong className="text-neutral-900">{formatPHP(submittedApp.stipendAmount)}</strong>
-                  </div>
-                  <div>
-                    <span className="text-neutral-500 block text-[11px]">Assigned Evaluator:</span>
-                    <span className="text-neutral-800">{submittedApp.assignedEvaluator}</span>
+
+                  {/* QR Code Container */}
+                  <div className="flex flex-col items-center justify-center p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-center">
+                    <QRCodeSVG
+                      value={`${window.location.origin}/#scholarships?track=${encodeURIComponent(submittedApp.id)}`}
+                      size={110}
+                      level="M"
+                      includeMargin={false}
+                    />
+                    <span className="text-[9px] font-mono text-neutral-500 mt-2 block leading-tight">
+                      Scan to Track Status
+                    </span>
                   </div>
                 </div>
 
+                {/* Uploaded Verification Documents */}
                 <div className="pt-2 border-t border-neutral-200">
                   <span className="text-[11px] font-bold text-neutral-700 block mb-1">
-                    Uploaded Verification Documents ({submittedApp.attachedDocuments.length}/4 Mandatory):
+                    Uploaded Verification Dossier ({submittedApp.attachedDocuments.length}/4 Mandatory):
                   </span>
-                  <div className="space-y-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {submittedApp.attachedDocuments.map((doc) => (
                       <div
                         key={doc.id}
-                        className="flex items-center justify-between text-[11px] text-neutral-600 bg-white p-1.5 rounded border border-neutral-200"
+                        className="flex items-center justify-between text-[11px] text-neutral-700 bg-neutral-50 p-1.5 rounded border border-neutral-200"
                       >
-                        <span className="truncate max-w-xs">{doc.name}</span>
+                        <span className="truncate max-w-[200px]">{doc.name}</span>
                         <span className="font-mono text-[10px] text-neutral-500">{doc.fileSize}</span>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {/* Footer Notice */}
+                <div className="pt-2 border-t border-neutral-200 flex items-center justify-between text-[10px] text-neutral-500">
+                  <span>Assigned Evaluator: {submittedApp.assignedEvaluator}</span>
+                  <span>R.A. 10173 Verified Digital Dossier</span>
+                </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3 pt-2">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-center gap-3 pt-2 print:hidden">
                 <button
                   type="button"
                   onClick={handlePrintReceipt}
-                  className="px-4 py-2 rounded-lg text-xs font-bold border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 inline-flex items-center gap-1.5 transition-colors"
+                  className="px-4 py-2.5 rounded-lg text-xs font-bold border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                 >
                   <Printer className="w-4 h-4 text-neutral-500" />
                   <span>Print Receipt</span>
@@ -468,7 +712,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                 <button
                   type="button"
                   onClick={resetAndClose}
-                  className="px-6 py-2 rounded-lg text-xs font-bold bg-[#A00000] hover:bg-[#800000] text-white transition-colors"
+                  className="px-6 py-2.5 rounded-lg text-xs font-bold bg-maroon-primary hover:bg-maroon-hover text-white transition-colors cursor-pointer shadow-2xs"
                 >
                   Done
                 </button>
@@ -527,7 +771,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       placeholder="e.g. 2024-05189-MN-0"
                       value={formData.studentId}
                       onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                      className={`w-full text-xs font-mono px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white transition-colors ${
+                      className={`w-full text-xs font-mono px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white transition-colors ${
                         attemptedSubmit && !formData.studentId.trim()
                           ? 'border-red-500 bg-red-50/20'
                           : 'border-neutral-300'
@@ -544,7 +788,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       placeholder="e.g. Ramos, Alyssa Nicole C."
                       value={formData.studentName}
                       onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white transition-colors ${
+                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white transition-colors ${
                         attemptedSubmit && !formData.studentName.trim()
                           ? 'border-red-500 bg-red-50/20'
                           : 'border-neutral-300'
@@ -561,7 +805,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       placeholder="+63 9XX XXX XXXX"
                       value={formData.contactNumber}
                       onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
-                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white transition-colors ${
+                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white transition-colors ${
                         attemptedSubmit && !formData.contactNumber.trim()
                           ? 'border-red-500 bg-red-50/20'
                           : 'border-neutral-300'
@@ -578,7 +822,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       placeholder="student@earist.edu.ph"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white transition-colors ${
+                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white transition-colors ${
                         attemptedSubmit && !formData.email.trim()
                           ? 'border-red-500 bg-red-50/20'
                           : 'border-neutral-300'
@@ -604,7 +848,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                     <select
                       value={formData.college}
                       onChange={(e) => handleCollegeChange(e.target.value as CollegeCode)}
-                      className="w-full text-xs px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white cursor-pointer"
+                      className="w-full text-xs px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white cursor-pointer"
                     >
                       <option value="CAS">CAS - Arts &amp; Sciences</option>
                       <option value="CEN">CEN - Engineering</option>
@@ -623,7 +867,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                     <select
                       value={formData.course}
                       onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                      className="w-full text-xs px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white cursor-pointer"
+                      className="w-full text-xs px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white cursor-pointer"
                     >
                       {(COLLEGE_PROGRAMS[formData.college] || []).map((prog) => (
                         <option key={prog} value={prog}>
@@ -642,7 +886,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       placeholder="e.g. 2nd Year - CS-2A"
                       value={formData.yearAndSection}
                       onChange={(e) => setFormData({ ...formData, yearAndSection: e.target.value })}
-                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white transition-colors ${
+                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white transition-colors ${
                         attemptedSubmit && !formData.yearAndSection.trim()
                           ? 'border-red-500 bg-red-50/20'
                           : 'border-neutral-300'
@@ -662,7 +906,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       placeholder="1.00 - 5.00"
                       value={formData.gwa}
                       onChange={(e) => setFormData({ ...formData, gwa: e.target.value })}
-                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white transition-colors ${
+                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white transition-colors ${
                         attemptedSubmit && !isGwaValid
                           ? 'border-red-500 bg-red-50/20'
                           : 'border-neutral-300'
@@ -680,7 +924,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       placeholder="e.g. 15000"
                       value={formData.monthlyHouseholdIncome}
                       onChange={(e) => setFormData({ ...formData, monthlyHouseholdIncome: e.target.value })}
-                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white transition-colors ${
+                      className={`w-full text-xs px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white transition-colors ${
                         attemptedSubmit && !formData.monthlyHouseholdIncome.trim()
                           ? 'border-red-500 bg-red-50/20'
                           : 'border-neutral-300'
@@ -706,14 +950,26 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                     <select
                       value={formData.program}
                       onChange={(e) => setFormData({ ...formData, program: e.target.value as ScholarshipProgram })}
-                      className="w-full text-xs font-medium px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#A00000] focus:border-[#A00000] bg-white cursor-pointer"
+                      className="w-full text-xs font-medium px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white cursor-pointer"
                     >
-                      <option value="CHED TDP">CHED Tulong Dunong Program (TDP-SUC)</option>
-                      <option value="Tertiary Education Subsidy (TES)">Tertiary Education Subsidy (TES - UniFAST)</option>
-                      <option value="Academic Excellence Grant">Academic Excellence Grant (President&apos;s/Dean&apos;s List)</option>
-                      <option value="DOST-SEI Grant">DOST-SEI Science &amp; Technology Grant</option>
-                      <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
-                      <option value="Barangay/LGU Assistance">Barangay / LGU Educational Assistance</option>
+                      <option value="CHED TDP" disabled={isGrantClosed('CHED TDP')}>
+                        CHED Tulong Dunong Program (TDP-SUC) {isGrantClosed('CHED TDP') ? '(Quota Reached - Closed)' : ''}
+                      </option>
+                      <option value="Tertiary Education Subsidy (TES)" disabled={isGrantClosed('Tertiary Education Subsidy (TES)')}>
+                        Tertiary Education Subsidy (TES - UniFAST) {isGrantClosed('Tertiary Education Subsidy (TES)') ? '(Quota Reached - Closed)' : ''}
+                      </option>
+                      <option value="Academic Excellence Grant" disabled={isGrantClosed('Academic Excellence Grant')}>
+                        Academic Excellence Grant (President's/Dean's List) {isGrantClosed('Academic Excellence Grant') ? '(Quota Reached - Closed)' : ''}
+                      </option>
+                      <option value="DOST-SEI Grant" disabled={isGrantClosed('DOST-SEI Grant')}>
+                        DOST-SEI Science &amp; Technology Grant {isGrantClosed('DOST-SEI Grant') ? '(Quota Reached - Closed)' : ''}
+                      </option>
+                      <option value="Student Assistantship Program (SAP)" disabled={isGrantClosed('Student Assistantship Program (SAP)')}>
+                        Student Assistantship Program (SAP) {isGrantClosed('Student Assistantship Program (SAP)') ? '(Quota Reached - Closed)' : ''}
+                      </option>
+                      <option value="Barangay/LGU Assistance" disabled={isGrantClosed('Barangay/LGU Assistance')}>
+                        Barangay / LGU Educational Assistance {isGrantClosed('Barangay/LGU Assistance') ? '(Quota Reached - Closed)' : ''}
+                      </option>
                     </select>
                   </div>
 
@@ -722,7 +978,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider block">
                         Earmarked Semestral Benefit
                       </span>
-                      <span className="text-base font-black text-[#A00000]">
+                      <span className="text-base font-black text-maroon-primary">
                         {formatPHP(PROGRAM_STIPENDS[formData.program] || 0)}
                       </span>
                     </div>
@@ -732,6 +988,21 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Real-Time Automated Eligibility Pre-Screening Banner (Feature 1) */}
+                {!eligibilityCheck.eligible && eligibilityCheck.advisory && (
+                  <div className="p-3.5 rounded-lg bg-red-50 border border-red-300 text-red-900 flex items-start gap-2.5 text-xs animate-in fade-in duration-150">
+                    <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="font-bold block text-red-950">
+                        Eligibility Pre-Screening Advisory:
+                      </strong>
+                      <span className="text-red-900 leading-relaxed">
+                        {eligibilityCheck.advisory}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* --------------------------------------------------------- */}
@@ -764,7 +1035,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                             : isMissing || error
                             ? 'border-red-400 bg-red-50/20'
                             : isDragActive
-                            ? 'border-[#A00000] bg-red-50/30'
+                            ? 'border-maroon-primary bg-red-50/30'
                             : 'border-dashed border-neutral-300 bg-neutral-50/50 hover:border-neutral-400'
                         }`}
                         onDragOver={(e) => {
@@ -849,7 +1120,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
 
                             <label
                               htmlFor={`file-input-${key}`}
-                              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white border border-neutral-300 hover:border-[#A00000] hover:text-[#A00000] text-neutral-700 transition-colors shadow-2xs cursor-pointer flex-shrink-0"
+                              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white border border-neutral-300 hover:border-maroon-primary hover:text-maroon-primary text-neutral-700 transition-colors shadow-2xs cursor-pointer flex-shrink-0"
                             >
                               <Upload className="w-3.5 h-3.5" />
                               <span>Select .PDF or .PNG</span>
@@ -882,20 +1153,31 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
 
                   <button
                     type="submit"
-                    disabled={!isFormValid}
+                    disabled={!isFormValid || isSubmitting}
                     className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-bold transition-all shadow-xs ${
-                      isFormValid
-                        ? 'bg-[#A00000] hover:bg-[#800000] text-white cursor-pointer'
+                      isFormValid && !isSubmitting
+                        ? 'bg-maroon-primary hover:bg-maroon-hover text-white cursor-pointer'
                         : 'bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-50'
                     }`}
                     title={
-                      isFormValid
+                      !eligibilityCheck.eligible
+                        ? `Eligibility Pre-Screening: ${eligibilityCheck.advisory}`
+                        : isFormValid
                         ? 'Submit verified application to SFAO'
                         : 'Complete all required inputs and upload all 4 mandatory files to enable submission'
                     }
                   >
-                    <FileText className="w-4 h-4" />
-                    <span>Submit Application (RA 10173 Compliant)</span>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Transmitting to SFAO Server...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>Submit Application (RA 10173 Compliant)</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

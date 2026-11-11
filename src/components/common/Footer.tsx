@@ -9,7 +9,6 @@ import {
   Award,
   Lock,
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 
 interface FooterProps {
   onNavigateScholarships: () => void;
@@ -25,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({
   onNavigateLogin,
 }) => {
   return (
-    <footer className="bg-[#380000] text-neutral-300 text-xs border-t-4 border-amber-400">
+    <footer className="bg-maroon-deep text-neutral-300 text-xs border-t-4 border-gold-accent">
       {/* Upper Footer: Seal, Transparency & Quick Links */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12">
@@ -42,7 +41,7 @@ export const Footer: React.FC<FooterProps> = ({
                 href="https://facebook.com"
                 target="_blank"
                 rel="noreferrer"
-                className="p-2 rounded-full bg-white/10 hover:bg-amber-400 hover:text-maroon-900 transition-colors"
+                className="p-2 rounded-full bg-white/10 hover:bg-gold-primary hover:text-maroon-deep transition-colors"
                 aria-label="EARIST Official Facebook"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -53,7 +52,7 @@ export const Footer: React.FC<FooterProps> = ({
                 href="https://earist.edu.ph"
                 target="_blank"
                 rel="noreferrer"
-                className="p-2 rounded-full bg-white/10 hover:bg-amber-400 hover:text-maroon-900 transition-colors"
+                className="p-2 rounded-full bg-white/10 hover:bg-gold-primary hover:text-maroon-deep transition-colors"
                 aria-label="Official Website"
               >
                 <Globe className="w-4 h-4" />
@@ -64,7 +63,7 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Col 2: Scholarship & Financial Assistance Office */}
           <div className="lg:col-span-3 space-y-3">
             <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-400" />
+              <Award className="w-4 h-4 text-gold-accent" />
               <h3 className="text-white font-bold uppercase tracking-wider text-xs">
                 Scholarship Office (SFAO)
               </h3>
@@ -73,36 +72,36 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={onNavigateScholarships}
-                  className="hover:text-amber-300 transition-colors text-left flex items-center gap-1.5"
+                  className="hover:text-gold-light transition-colors text-left flex items-center gap-1.5"
                 >
-                  <span className="text-amber-400">▸</span>
+                  <span className="text-gold-accent">▸</span>
                   <span>Weekly Accomplishment Report</span>
                 </button>
               </li>
               <li>
                 <button
                   onClick={onNavigateScholarships}
-                  className="hover:text-amber-300 transition-colors text-left flex items-center gap-1.5"
+                  className="hover:text-gold-light transition-colors text-left flex items-center gap-1.5"
                 >
-                  <span className="text-amber-400">▸</span>
+                  <span className="text-gold-accent">▸</span>
                   <span>CHED TDP & TES Grant Validation</span>
                 </button>
               </li>
               <li>
                 <button
                   onClick={onNavigateScholarships}
-                  className="hover:text-amber-300 transition-colors text-left flex items-center gap-1.5"
+                  className="hover:text-gold-light transition-colors text-left flex items-center gap-1.5"
                 >
-                  <span className="text-amber-400">▸</span>
+                  <span className="text-gold-accent">▸</span>
                   <span>Academic Excellence Grant Roster</span>
                 </button>
               </li>
               <li>
                 <button
                   onClick={onNavigateScholarships}
-                  className="hover:text-amber-300 transition-colors text-left flex items-center gap-1.5"
+                  className="hover:text-gold-light transition-colors text-left flex items-center gap-1.5"
                 >
-                  <span className="text-amber-400">▸</span>
+                  <span className="text-gold-accent">▸</span>
                   <span>Document Evaluation Guidelines</span>
                 </button>
               </li>
@@ -116,26 +115,26 @@ export const Footer: React.FC<FooterProps> = ({
             </h3>
             <div className="space-y-2.5 text-neutral-300 text-[11px]">
               <div>
-                <p className="text-amber-300 font-bold">Manila Main Campus:</p>
+                <p className="text-gold-light font-bold">Manila Main Campus:</p>
                 <p className="flex items-start gap-1.5 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <MapPin className="w-3.5 h-3.5 text-gold-accent flex-shrink-0 mt-0.5" />
                   <span>Nagtahan, Sampaloc, Manila 1008, Philippines</span>
                 </p>
               </div>
               <div>
-                <p className="text-amber-300 font-bold">Cavite Campus:</p>
+                <p className="text-gold-light font-bold">Cavite Campus:</p>
                 <p className="flex items-start gap-1.5 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <MapPin className="w-3.5 h-3.5 text-gold-accent flex-shrink-0 mt-0.5" />
                   <span>Brgy. Poblacion 5, GMA, Cavite</span>
                 </p>
               </div>
               <div className="pt-1 flex flex-col gap-1">
                 <span className="flex items-center gap-1.5">
-                  <Phone className="w-3 h-3 text-amber-400" />
+                  <Phone className="w-3 h-3 text-gold-accent" />
                   <span>(02) 8716-6273 / 8716-7243</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Mail className="w-3 h-3 text-amber-400" />
+                  <Mail className="w-3 h-3 text-gold-accent" />
                   <span>sfao@earist.edu.ph</span>
                 </span>
               </div>
@@ -155,7 +154,7 @@ export const Footer: React.FC<FooterProps> = ({
               <p className="text-[10px] text-neutral-400 leading-tight">
                 In compliance with Section 93 of Republic Act No. 10155 (General Appropriations Act).
               </p>
-              <span className="inline-block text-[9px] bg-amber-400 text-[#4a0000] font-black px-1.5 py-0.5 rounded">
+              <span className="inline-block text-[9px] bg-gold-primary text-maroon-deep font-black px-1.5 py-0.5 rounded">
                 FOI Compliant
               </span>
             </div>
@@ -164,17 +163,17 @@ export const Footer: React.FC<FooterProps> = ({
       </div>
 
       {/* Bottom Sub-Footer */}
-      <div className="bg-[#240000] py-4 px-4 sm:px-6 lg:px-8 border-t border-white/10">
+      <div className="bg-maroon-darkest py-4 px-4 sm:px-6 lg:px-8 border-t border-white/10">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-[11px] text-neutral-400">
           <div>
             © {CURRENT_YEAR} Eulogio "Amang" Rodriguez Institute of Science and Technology (EARIST). All Rights Reserved.
           </div>
           <div className="flex items-center gap-4 text-neutral-400">
-            <a href="#privacy" className="hover:text-amber-300 transition-colors">Privacy Policy</a>
+            <a href="#privacy" className="hover:text-gold-light transition-colors">Privacy Policy</a>
             <span>•</span>
-            <a href="#terms" className="hover:text-amber-300 transition-colors">Terms of Use</a>
+            <a href="#terms" className="hover:text-gold-light transition-colors">Terms of Use</a>
             <span>•</span>
-            <a href="#citizens-charter" className="hover:text-amber-300 transition-colors">Citizen's Charter</a>
+            <a href="#citizens-charter" className="hover:text-gold-light transition-colors">Citizen's Charter</a>
             <span>•</span>
             <button
               type="button"
@@ -185,7 +184,7 @@ export const Footer: React.FC<FooterProps> = ({
                   window.location.hash = 'login';
                 }
               }}
-              className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-amber-300 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-gold-light transition-colors cursor-pointer"
               title="Evaluator &amp; Administrator Portal Login"
             >
               <Lock className="w-3 h-3" />

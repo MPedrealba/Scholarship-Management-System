@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AuthProvider } from './context/AuthContext';
-import { HeaderNav } from './components/common/HeaderNav';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { HeaderNav, type AppView } from './components/common/HeaderNav';
 import { HeroBanner } from './components/home/HeroBanner';
 import { QuickServices } from './components/home/QuickServices';
 import { CollegesGrid } from './components/home/CollegesGrid';
@@ -8,17 +8,25 @@ import { AnnouncementsSection } from './components/home/AnnouncementsSection';
 import { ScholarshipModule } from './components/scholarships/ScholarshipModule';
 import { Footer } from './components/common/Footer';
 import { LoginPage } from './components/auth/LoginPage';
+import { EvaluatorDashboard } from './components/dashboard/EvaluatorDashboard';
+import { AdminDashboard } from './components/dashboard/AdminDashboard';
+import type { AuthUser } from './types';
 
 function AppContent() {
-  const [currentView, setCurrentView] = useState<'home' | 'scholarships' | 'login'>('home');
+  const { currentUser, logoutToStudent } = useAuth();
+  const [currentView, setCurrentView] = useState<AppView>('home');
   const [collegeFilterForModule, setCollegeFilterForModule] = useState<string>('All');
 
-  // Synchronize with URL hash or path for direct routing (e.g. #login, #scholarships, or /scholarships)
+  // Synchronize with URL hash or path for direct routing (e.g. #login, #scholarships, #evaluator, #admin)
   useEffect(() => {
     const handleLocationChange = () => {
       const hash = window.location.hash.toLowerCase();
       const path = window.location.pathname.toLowerCase();
-      if (hash.includes('login') || path.includes('login')) {
+      if (hash.includes('evaluator') || path.includes('evaluator')) {
+        setCurrentView('evaluator-dashboard');
+      } else if (hash.includes('admin') || path.includes('admin')) {
+        setCurrentView('admin-dashboard');
+      } else if (hash.includes('login') || path.includes('login')) {
         setCurrentView('login');
       } else if (hash.includes('scholarship') || path.includes('scholarship')) {
         setCurrentView('scholarships');
@@ -37,10 +45,14 @@ function AppContent() {
     };
   }, []);
 
-  const navigateTo = (view: 'home' | 'scholarships' | 'login') => {
+  const navigateTo = (view: AppView) => {
     setCurrentView(view);
     if (view === 'login') {
       window.location.hash = 'login';
+    } else if (view === 'evaluator-dashboard') {
+      window.location.hash = 'evaluator';
+    } else if (view === 'admin-dashboard') {
+      window.location.hash = 'admin';
     } else if (view === 'scholarships') {
       window.location.hash = 'scholarships';
     } else {
@@ -54,12 +66,51 @@ function AppContent() {
     navigateTo('scholarships');
   };
 
-  // If in dedicated standalone Login View
+  const handleLoginSuccess = (user?: AuthUser) => {
+    const role = user?.role || currentUser.role;
+    if (role === 'superadmin') {
+      navigateTo('admin-dashboard');
+    } else if (role === 'evaluator') {
+      navigateTo('evaluator-dashboard');
+    } else {
+      navigateTo('scholarships');
+    }
+  };
+
+  // 1. Standalone Login Page
   if (currentView === 'login') {
     return (
       <LoginPage
         onBackToHome={() => navigateTo('home')}
-        onLoginSuccess={() => navigateTo('scholarships')}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
+
+  // 2. Dedicated College Evaluator Workstation
+  if (currentView === 'evaluator-dashboard') {
+    return (
+      <EvaluatorDashboard
+        onNavigateHome={() => navigateTo('home')}
+        onNavigateScholarships={() => navigateTo('scholarships')}
+        onSignOut={() => {
+          logoutToStudent();
+          navigateTo('home');
+        }}
+      />
+    );
+  }
+
+  // 3. Dedicated Super Admin / SFAO Director Workstation
+  if (currentView === 'admin-dashboard') {
+    return (
+      <AdminDashboard
+        onNavigateHome={() => navigateTo('home')}
+        onNavigateScholarships={() => navigateTo('scholarships')}
+        onSignOut={() => {
+          logoutToStudent();
+          navigateTo('home');
+        }}
       />
     );
   }

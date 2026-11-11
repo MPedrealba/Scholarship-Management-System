@@ -23,7 +23,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({ onOp
 
           <button
             onClick={onOpenScholarships}
-            className="text-xs font-bold text-[#800000] hover:text-[#5a0000] flex items-center gap-1.5 self-start md:self-auto bg-white px-3.5 py-2 rounded-lg border border-neutral-300 shadow-2xs hover:shadow-xs transition-all"
+            className="text-xs font-bold text-maroon-primary hover:text-maroon-dark flex items-center gap-1.5 self-start md:self-auto bg-white px-3.5 py-2 rounded-lg border border-neutral-300 shadow-2xs hover:shadow-xs hover:border-maroon-primary/40 transition-all cursor-pointer"
           >
             <span>View All Scholarship Advisories</span>
             <ArrowRight className="w-4 h-4" />
@@ -37,14 +37,14 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({ onOp
             return (
               <div
                 key={item.id}
-                className="bg-white rounded-xl p-5 border border-neutral-200 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between"
+                className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs hover:shadow-md hover:border-maroon-primary/30 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <span
                       className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded tracking-wider ${
                         isScholarship
-                          ? 'bg-amber-100 text-amber-800 border border-amber-300/80'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
                           : 'bg-neutral-100 text-neutral-700'
                       }`}
                     >
@@ -56,7 +56,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({ onOp
                     </span>
                   </div>
 
-                  <h3 className="text-sm font-bold text-neutral-900 line-clamp-2 hover:text-[#800000] transition-colors mb-2">
+                  <h3 className="text-sm font-bold text-neutral-900 line-clamp-2 hover:text-maroon-primary transition-colors mb-2">
                     {item.title}
                   </h3>
 

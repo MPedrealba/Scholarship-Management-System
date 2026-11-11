@@ -1,0 +1,836 @@
+{
+  "applications": [
+    {
+      "applicationNo": "APP-2026-1049",
+      "studentNumber": "2024-02319-MN-0",
+      "studentName": "Valdez, Christian Paul G.",
+      "contactMobile": "+63 918 732 4410",
+      "email": "christianpaul.valdez@earist.edu.ph",
+      "college": "CIT",
+      "degreeProgram": "BS in Industrial Technology",
+      "yearLevel": "2nd Year - IT-2B",
+      "academicTerm": "1st Sem A.Y. 2026-2027",
+      "gwa": "1.48",
+      "monthlyIncome": "12500",
+      "scholarshipGrant": "CHED TDP",
+      "stipendAmount": 15000,
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "Certificate_of_Registration_CIT_2026.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1285000,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "Official_Grade_Slip.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 850000,
+          "mimeType": "image/png",
+          "isVerified": false
+        },
+        {
+          "docType": "indigency",
+          "fileName": "Barangay_Certificate_of_Indigency.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 620000,
+          "mimeType": "application/pdf",
+          "isVerified": false
+        },
+        {
+          "docType": "validId",
+          "fileName": "EARIST_Student_ID_FrontBack.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 780000,
+          "mimeType": "image/png",
+          "isVerified": false
+        }
+      ],
+      "status": "Pending Review",
+      "evaluatorRemarks": "Initial submission received and queued for college document verification.",
+      "auditTrail": [
+        {
+          "evaluatorName": "Online Admission Portal",
+          "role": "System Intake",
+          "action": "Application Dossier Submitted",
+          "remarks": "Direct online intake via SFAO Student Application Portal for 1st Sem A.Y. 2026-2027. Attachments queued for verification.",
+          "timestamp": "2026-11-11T11:58:13.875Z"
+        }
+      ],
+      "createdAt": "2026-11-11T11:58:13.875Z",
+      "updatedAt": "2026-11-11T11:58:13.875Z"
+    },
+    {
+      "applicationNo": "APP-2026-1041",
+      "studentNumber": "2023-01849-MN-0",
+      "studentName": "Dela Cruz, Juan Gabriel M.",
+      "contactMobile": "+63 917 842 1902",
+      "email": "juangabriel.delacruz@earist.edu.ph",
+      "college": "CAS",
+      "degreeProgram": "BS in Computer Science",
+      "yearLevel": "3rd Year - CS-3A",
+      "gwa": "1.32",
+      "monthlyIncome": "14500",
+      "scholarshipGrant": "CHED TDP",
+      "stipendAmount": 15000,
+      "status": "Approved",
+      "evaluatorRemarks": "Complete academic records and official Barangay Indigency certified. High academic standing.",
+      "evaluatedBy": "Prof. Marlon Santos (SFAO-CAS)",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "Certificate_of_Registration_2026.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1468006,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "Official_Grade_Slip.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 870400,
+          "mimeType": "image/png",
+          "isVerified": true
+        },
+        {
+          "docType": "indigency",
+          "fileName": "Barangay_Indigency.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 634880,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "validId",
+          "fileName": "Student_ID_FrontBack.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 798720,
+          "mimeType": "image/png",
+          "isVerified": true
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    },
+    {
+      "applicationNo": "APP-2026-1042",
+      "studentNumber": "2022-04128-MN-0",
+      "studentName": "Santos, Ma. Angelica R.",
+      "contactMobile": "+63 928 554 9921",
+      "email": "maangelica.santos@earist.edu.ph",
+      "college": "CEN",
+      "degreeProgram": "BS in Civil Engineering",
+      "yearLevel": "4th Year - CE-4B",
+      "gwa": "1.45",
+      "monthlyIncome": "12000",
+      "scholarshipGrant": "Tertiary Education Subsidy (TES)",
+      "stipendAmount": 20000,
+      "status": "Endorsed",
+      "evaluatorRemarks": "Validated under Listahanan / 4Ps household category. Recommended for CHED UniFAST endorsement.",
+      "evaluatedBy": "Engr. Ricardo Bautista (SFAO-CEN)",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "COR_Engineering_2026.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1258291,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "Grade_Transcript.pdf",
+          "filePath": "/uploads/sample_grades.pdf",
+          "fileSize": 942080,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "indigency",
+          "fileName": "DSWD_Certificate.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 1153433,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "validId",
+          "fileName": "EARIST_ID.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 450560,
+          "mimeType": "image/png",
+          "isVerified": true
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    },
+    {
+      "applicationNo": "APP-2026-1043",
+      "studentNumber": "2024-00812-MN-0",
+      "studentName": "Bautista, Carlo Andrei T.",
+      "contactMobile": "+63 908 112 4478",
+      "email": "carloandrei.bautista@earist.edu.ph",
+      "college": "CBA",
+      "degreeProgram": "BS in Business Administration",
+      "yearLevel": "1st Year - BA-1B",
+      "gwa": "1.75",
+      "monthlyIncome": "11000",
+      "scholarshipGrant": "CHED TDP",
+      "stipendAmount": 15000,
+      "status": "Pending Review",
+      "evaluatorRemarks": "Initial screening underway. Cross-matching with LGU financial assistance records.",
+      "evaluatedBy": "Prof. Corazon Reyes (SFAO-CBA)",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "COR_BusinessAdmin.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1153433,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "SHS_Transcript.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 614400,
+          "mimeType": "image/png",
+          "isVerified": false
+        },
+        {
+          "docType": "indigency",
+          "fileName": "Barangay_Indigency.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 512000,
+          "mimeType": "application/pdf",
+          "isVerified": false
+        },
+        {
+          "docType": "validId",
+          "fileName": "Student_ID.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 409600,
+          "mimeType": "image/png",
+          "isVerified": false
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    },
+    {
+      "applicationNo": "APP-2026-1044",
+      "studentNumber": "2021-00341-MN-0",
+      "studentName": "Villanueva, Patricia Nicole S.",
+      "contactMobile": "+63 915 221 4489",
+      "email": "patricia.villanueva@earist.edu.ph",
+      "college": "CIT",
+      "degreeProgram": "BS in Information Technology",
+      "yearLevel": "4th Year - IT-4A",
+      "gwa": "1.24",
+      "monthlyIncome": "16000",
+      "scholarshipGrant": "Academic Excellence Grant",
+      "stipendAmount": 18000,
+      "status": "Approved",
+      "evaluatorRemarks": "Presidents Lister. Exemplary academic achievement across all 6 semesters.",
+      "evaluatedBy": "Prof. Noel Carpio (SFAO-CIT)",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "COR_CIT_2026.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1363148,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "Deans_List_Certified_Grades.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 1024000,
+          "mimeType": "image/png",
+          "isVerified": true
+        },
+        {
+          "docType": "indigency",
+          "fileName": "Certificate_Indigency.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 532480,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "validId",
+          "fileName": "Valid_ID.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 614400,
+          "mimeType": "image/png",
+          "isVerified": true
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    },
+    {
+      "applicationNo": "APP-2026-1045",
+      "studentNumber": "2023-09142-MN-0",
+      "studentName": "Flores, Joshua Miguel D.",
+      "contactMobile": "+63 949 332 7780",
+      "email": "joshuamiguel.flores@earist.edu.ph",
+      "college": "CAFA",
+      "degreeProgram": "BS in Architecture",
+      "yearLevel": "3rd Year - AR-3C",
+      "gwa": "1.92",
+      "monthlyIncome": "19000",
+      "scholarshipGrant": "Barangay/LGU Assistance",
+      "stipendAmount": 10000,
+      "status": "Approved",
+      "evaluatorRemarks": "All deficiency requirements verified and cleared by SFAO Director.",
+      "flagReason": "Expired Certificate of Indigency: Requires 2026 certification issued within the last 6 months.",
+      "evaluatedBy": "Dr. Mario M. Santos",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "COR_CAFA.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1153433,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "Official_Grades.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 768000,
+          "mimeType": "image/png",
+          "isVerified": true
+        },
+        {
+          "docType": "indigency",
+          "fileName": "Old_Barangay_Cert_2024.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 491520,
+          "mimeType": "application/pdf",
+          "isVerified": false
+        },
+        {
+          "docType": "validId",
+          "fileName": "Student_ID.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 563200,
+          "mimeType": "image/png",
+          "isVerified": true
+        }
+      ],
+      "updatedAt": "2026-11-10T22:15:24.157Z",
+      "auditTrail": [
+        {
+          "evaluatorName": "Dr. Mario M. Santos",
+          "role": "College Evaluator",
+          "action": "Approved for Final Awarding",
+          "remarks": "All deficiency requirements verified and cleared by SFAO Director.",
+          "timestamp": "2026-11-10T22:15:24.157Z"
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    },
+    {
+      "applicationNo": "APP-2026-1046",
+      "studentNumber": "2024-01994-MN-0",
+      "studentName": "Reyes, John Carlo P.",
+      "contactMobile": "+63 917 654 3210",
+      "email": "johncarlo.reyes@earist.edu.ph",
+      "college": "CHM",
+      "degreeProgram": "BS in Hospitality Management",
+      "yearLevel": "2nd Year - HM-2A",
+      "gwa": "1.68",
+      "monthlyIncome": "13500",
+      "scholarshipGrant": "Student Assistantship Program (SAP)",
+      "stipendAmount": 12000,
+      "status": "Pending Review",
+      "evaluatorRemarks": "Initial submission received and queued for SFAO document screening.",
+      "evaluatedBy": "Prof. Jocelyn Morales (SFAO-CHM)",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "COR_CHM.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1048576,
+          "mimeType": "application/pdf",
+          "isVerified": false
+        },
+        {
+          "docType": "grades",
+          "fileName": "Grades.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 716800,
+          "mimeType": "image/png",
+          "isVerified": false
+        },
+        {
+          "docType": "indigency",
+          "fileName": "Barangay_Cert.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 512000,
+          "mimeType": "application/pdf",
+          "isVerified": false
+        },
+        {
+          "docType": "validId",
+          "fileName": "ID_Card.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 665600,
+          "mimeType": "image/png",
+          "isVerified": false
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    },
+    {
+      "applicationNo": "APP-2026-1047",
+      "studentNumber": "2022-03115-MN-0",
+      "studentName": "Mendoza, Danica Mae B.",
+      "contactMobile": "+63 920 441 8832",
+      "email": "danicamae.mendoza@earist.edu.ph",
+      "college": "CED",
+      "degreeProgram": "Bachelor of Secondary Education",
+      "yearLevel": "4th Year - BSE-4A",
+      "gwa": "1.38",
+      "monthlyIncome": "14000",
+      "scholarshipGrant": "DOST-SEI Grant",
+      "stipendAmount": 40000,
+      "status": "Approved",
+      "evaluatorRemarks": "DOST-SEI JLSS Scholar endorsement verified. All regional clearances attached.",
+      "evaluatedBy": "Dr. Teresa Garcia (SFAO-CED)",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "COR_Education.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 1228800,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "Transcript_of_Records.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 819200,
+          "mimeType": "image/png",
+          "isVerified": true
+        },
+        {
+          "docType": "indigency",
+          "fileName": "DOST_Award_Notice.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 614400,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "validId",
+          "fileName": "DOST_ID.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 512000,
+          "mimeType": "image/png",
+          "isVerified": true
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    },
+    {
+      "applicationNo": "APP-2026-1048",
+      "studentNumber": "2023-01124-MN-0",
+      "studentName": "Dela Cruz, Juan",
+      "contactMobile": "09171234567",
+      "email": "juan.delacruz@earist.edu.ph",
+      "college": "CIT",
+      "degreeProgram": "Bachelor of Science in Information Technology",
+      "yearLevel": "4th Year",
+      "gwa": "1.35",
+      "monthlyIncome": "15000",
+      "scholarshipGrant": "CHED TDP",
+      "stipendAmount": 15000,
+      "status": "Approved",
+      "evaluatorRemarks": "Final awarding approved by SFAO Director. Enrolled into CHED masterlist.",
+      "evaluatedBy": "Dr. Rogelio T. Mamaradlo (SFAO Director)",
+      "documents": [
+        {
+          "docType": "cor",
+          "fileName": "Certificate_of_Registration.pdf",
+          "filePath": "/uploads/sample_cor.pdf",
+          "fileSize": 512000,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "grades",
+          "fileName": "Official_Grade_Slip.png",
+          "filePath": "/uploads/sample_grades.png",
+          "fileSize": 824000,
+          "mimeType": "image/png",
+          "isVerified": true
+        },
+        {
+          "docType": "indigency",
+          "fileName": "Barangay_Indigency.pdf",
+          "filePath": "/uploads/sample_indigency.pdf",
+          "fileSize": 450000,
+          "mimeType": "application/pdf",
+          "isVerified": true
+        },
+        {
+          "docType": "validId",
+          "fileName": "Student_ID.png",
+          "filePath": "/uploads/sample_id.png",
+          "fileSize": 610000,
+          "mimeType": "image/png",
+          "isVerified": true
+        }
+      ],
+      "academicTerm": "1st Sem A.Y. 2026-2027"
+    }
+  ],
+  "quotas": [
+    {
+      "grantType": "Tertiary Education Subsidy (TES)",
+      "totalSlots": 50,
+      "allocatedSlots": 0,
+      "isLocked": false
+    },
+    {
+      "grantType": "CHED TDP",
+      "totalSlots": 40,
+      "allocatedSlots": 0,
+      "isLocked": false
+    },
+    {
+      "grantType": "DOST-SEI Grant",
+      "totalSlots": 20,
+      "allocatedSlots": 0,
+      "isLocked": false
+    },
+    {
+      "grantType": "Academic Excellence Grant",
+      "totalSlots": 25,
+      "allocatedSlots": 0,
+      "isLocked": false
+    },
+    {
+      "grantType": "Student Assistantship Program (SAP)",
+      "totalSlots": 20,
+      "allocatedSlots": 0,
+      "isLocked": false
+    },
+    {
+      "grantType": "Barangay/LGU Assistance",
+      "totalSlots": 35,
+      "allocatedSlots": 0,
+      "isLocked": false
+    }
+  ],
+  "users": [
+    {
+      "_id": "usr-1794436373559-e0pwx",
+      "name": "Prof. Edgardo M. Reyes",
+      "email": "edgardo.reyes@earist.edu.ph",
+      "password": "$2b$10$1q5faCt.UNfHBv8WNPJLT.34OG5LwZ1kWf/4ZeWfLYhlpSAMVsWji",
+      "role": "evaluator",
+      "college": "CED",
+      "employeeId": "EMP-CED-2026",
+      "studentNumber": null,
+      "isActive": true,
+      "createdAt": "2026-11-11T22:32:53.559Z",
+      "updatedAt": "2026-11-11T22:32:53.595Z"
+    },
+    {
+      "_id": "usr-1794436355125-pitmf",
+      "name": "Maria Clara Santos",
+      "email": "maria.clara@earist.edu.ph",
+      "studentNumber": "2024-11223-MN-0",
+      "college": "CAS",
+      "role": "student",
+      "password": "$2b$10$mSP5Eir9z/ry3CbvU2TLFOTriFx7.TqJ4KIyS/bpCfa4jF5NbaBra",
+      "isActive": true,
+      "employeeId": null,
+      "createdAt": "2026-11-11T22:32:35.125Z",
+      "updatedAt": "2026-11-11T22:32:53.135Z",
+      "resetOtpHash": null,
+      "resetOtpExpires": null
+    },
+    {
+      "email": "admin@earist.edu.ph",
+      "password": "password123",
+      "role": "admin",
+      "name": "Dr. Rogelio T. Mamaradlo",
+      "college": null
+    },
+    {
+      "email": "evaluator@earist.edu.ph",
+      "password": "password123",
+      "role": "evaluator",
+      "name": "Prof. Noel Carpio",
+      "college": "CIT"
+    },
+    {
+      "email": "student@earist.edu.ph",
+      "password": "password123",
+      "role": "student",
+      "name": "Juan Dela Cruz",
+      "college": "CIT"
+    }
+  ],
+  "terms": [
+    {
+      "id": "term-1794398336962",
+      "termName": "2nd Sem A.Y. 2026-2027",
+      "isActive": true,
+      "isArchived": false,
+      "archivedAt": null,
+      "archivedBy": null,
+      "totalApplications": 0,
+      "approvedScholars": 0,
+      "disbursedAmount": 0,
+      "createdAt": "2026-11-11T11:58:56.962Z"
+    },
+    {
+      "id": "term-active",
+      "termName": "1st Sem A.Y. 2026-2027",
+      "isActive": false,
+      "isArchived": true,
+      "archivedAt": "2026-11-11T11:58:56.962Z",
+      "archivedBy": "Dr. Mario M. Santos",
+      "totalApplications": 8,
+      "approvedScholars": 8,
+      "disbursedAmount": 180000,
+      "createdAt": "2026-11-11T11:57:49.046Z"
+    },
+    {
+      "id": "term-past-1",
+      "termName": "2nd Sem A.Y. 2025-2026",
+      "isActive": false,
+      "isArchived": true,
+      "archivedAt": "2026-06-30T10:00:00.000Z",
+      "archivedBy": "Dr. Mario M. Santos (SFAO Director)",
+      "totalApplications": 45,
+      "approvedScholars": 42,
+      "disbursedAmount": 840000,
+      "createdAt": "2026-01-15T08:00:00.000Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif-1794398293880-35",
+      "recipientRole": "student",
+      "recipientCollege": "CIT",
+      "recipientStudentNumber": "2024-02319-MN-0",
+      "targetRefNo": "APP-2026-1049",
+      "title": "Application Dossier Registered",
+      "message": "Your scholarship application (APP-2026-1049) for CHED TDP has been officially recorded and queued for college review.",
+      "type": "submission",
+      "isRead": false,
+      "createdAt": "2026-11-11T11:58:13.880Z"
+    },
+    {
+      "id": "notif-1794398293879-904",
+      "recipientRole": "evaluator",
+      "recipientCollege": "CIT",
+      "recipientStudentNumber": null,
+      "targetRefNo": "APP-2026-1049",
+      "title": "New College Application Filed",
+      "message": "Christian Paul G. Valdez (2024-02319-MN-0) filed an application for CHED TDP in CIT.",
+      "type": "submission",
+      "isRead": true,
+      "createdAt": "2026-11-11T11:58:13.879Z"
+    },
+    {
+      "id": "notif-1",
+      "recipientRole": "evaluator",
+      "recipientCollege": "CIT",
+      "recipientStudentNumber": null,
+      "targetRefNo": "APP-2026-1041",
+      "title": "New Application Submitted",
+      "message": "Juan Gabriel M. Dela Cruz submitted application for CHED TDP.",
+      "type": "submission",
+      "isRead": false,
+      "createdAt": "2026-11-11T10:57:49.047Z"
+    },
+    {
+      "id": "notif-2",
+      "recipientRole": "superadmin",
+      "recipientCollege": null,
+      "recipientStudentNumber": null,
+      "targetRefNo": "Tertiary Education Subsidy (TES)",
+      "title": "Grant Quota Alert (94% Capacity)",
+      "message": "UniFAST TES quota has reached 47 of 50 allocated slots (94% capacity).",
+      "type": "quota",
+      "isRead": false,
+      "createdAt": "2026-11-11T09:57:49.047Z"
+    },
+    {
+      "id": "notif-3",
+      "recipientRole": "student",
+      "recipientCollege": "CIT",
+      "recipientStudentNumber": "2023-01849-MN-0",
+      "targetRefNo": "APP-2026-1041",
+      "title": "Application Received by SFAO",
+      "message": "Your application APP-2026-1041 has been officially received and queued for evaluation.",
+      "type": "submission",
+      "isRead": false,
+      "createdAt": "2026-11-11T08:57:49.047Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "userEmail": "edgardo.reyes@earist.edu.ph",
+      "userName": "Prof. Edgardo M. Reyes",
+      "role": "evaluator",
+      "action": "User Authenticated (EVALUATOR)",
+      "details": "Successful institutional sign in from IP: ::1",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:53.732Z",
+      "sessionHash": "SHA256-FFXIJPSZ"
+    },
+    {
+      "userEmail": "admin@earist.edu.ph",
+      "userName": "Dr. Rogelio T. Mamaradlo",
+      "role": "admin",
+      "action": "User Account Status Changed",
+      "details": "Account edgardo.reyes@earist.edu.ph status changed to Activated by Super Admin",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:53.596Z",
+      "sessionHash": "SHA256-BW7MT0AX"
+    },
+    {
+      "userEmail": "admin@earist.edu.ph",
+      "userName": "Dr. Rogelio T. Mamaradlo",
+      "role": "admin",
+      "action": "User Account Status Changed",
+      "details": "Account edgardo.reyes@earist.edu.ph status changed to Suspended by Super Admin",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:53.579Z",
+      "sessionHash": "SHA256-LO11UW9W"
+    },
+    {
+      "userEmail": "admin@earist.edu.ph",
+      "userName": "Dr. Rogelio T. Mamaradlo",
+      "role": "admin",
+      "action": "Staff Account Created",
+      "details": "Created [EVALUATOR] account for Prof. Edgardo M. Reyes (edgardo.reyes@earist.edu.ph, CED)",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:53.560Z",
+      "sessionHash": "SHA256-OQGK7EKD"
+    },
+    {
+      "userEmail": "maria.clara@earist.edu.ph",
+      "userName": "Maria Clara Santos",
+      "role": "student",
+      "action": "User Authenticated (STUDENT)",
+      "details": "Successful institutional sign in from IP: ::1",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:53.418Z",
+      "sessionHash": "SHA256-7KL7B06K"
+    },
+    {
+      "userEmail": "maria.clara@earist.edu.ph",
+      "userName": "Maria Clara Santos",
+      "role": "student",
+      "action": "Password Reset Completed",
+      "details": "Password successfully updated via OTP verification from IP: ::1",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:53.136Z",
+      "sessionHash": "SHA256-LOU32K26"
+    },
+    {
+      "userEmail": "maria.clara@earist.edu.ph",
+      "userName": "Maria Clara Santos",
+      "role": "student",
+      "action": "Password Reset OTP Requested",
+      "details": "6-digit verification code dispatched via mailer (simulated) from IP: ::1",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:35.509Z",
+      "sessionHash": "SHA256-WX0551Y1"
+    },
+    {
+      "userEmail": "maria.clara@earist.edu.ph",
+      "userName": "Maria Clara Santos",
+      "role": "student",
+      "action": "User Authenticated (STUDENT)",
+      "details": "Successful institutional sign in from IP: ::1",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:35.271Z",
+      "sessionHash": "SHA256-XYM4VB7L"
+    },
+    {
+      "userEmail": "maria.clara@earist.edu.ph",
+      "userName": "Maria Clara Santos",
+      "role": "student",
+      "action": "Student Self-Registration",
+      "details": "Student account self-registered (ID: 2024-11223-MN-0, College: CAS) from IP: ::1",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T22:32:35.126Z",
+      "sessionHash": "SHA256-YHEY13SB"
+    },
+    {
+      "userEmail": "admin@earist.edu.ph",
+      "userName": "Dr. Mario M. Santos",
+      "role": "superadmin",
+      "action": "Archived Academic Term 1st Sem A.Y. 2026-2027",
+      "details": "Term closed and sealed. Transitioned active enrollment to 2nd Sem A.Y. 2026-2027. Quota allocations reset to 0.",
+      "ipAddress": "127.0.0.1",
+      "timestamp": "2026-11-11T11:58:56.965Z",
+      "sessionHash": "SHA256-LNFI4OJH"
+    },
+    {
+      "userEmail": "admin@earist.edu.ph",
+      "userName": "Dr. Mario M. Santos",
+      "role": "superadmin",
+      "action": "Storage Telemetry Orphaned Files Purged",
+      "details": "Purged 1 orphaned files. Recovered 0 MB of server disk space.",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T11:58:37.998Z",
+      "sessionHash": "SHA256-IE6UTS7N"
+    },
+    {
+      "userEmail": "christianpaul.valdez@earist.edu.ph",
+      "userName": "Valdez, Christian Paul G.",
+      "role": "student",
+      "action": "Submitted Scholarship Application APP-2026-1049",
+      "details": "Program: CHED TDP, College: CIT, Term: 1st Sem A.Y. 2026-2027",
+      "applicationNo": "APP-2026-1049",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-11T11:58:13.877Z",
+      "sessionHash": "SHA256-PZEZDAB3"
+    },
+    {
+      "userEmail": "admin@earist.edu.ph",
+      "userName": "Dr. Mario M. Santos",
+      "role": "admin",
+      "action": "Admin Quota Override for Barangay/LGU Assistance",
+      "details": "Updated parameters: totalSlots=35, isLocked=false, allocatedSlots=undefined",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-10T22:16:15.838Z",
+      "sessionHash": "SHA256-6RSEQ0TF"
+    },
+    {
+      "userEmail": "evaluator@earist.edu.ph",
+      "userName": "Dr. Mario M. Santos",
+      "role": "Evaluator",
+      "action": "Updated status of APP-2026-1045 to Approved",
+      "details": "All deficiency requirements verified and cleared by SFAO Director.",
+      "applicationNo": "APP-2026-1045",
+      "ipAddress": "::1",
+      "timestamp": "2026-11-10T22:15:24.160Z",
+      "sessionHash": "SHA256-L0U2FQ2Y"
+    },
+    {
+      "timestamp": "2026-11-10T22:15:02.342Z",
+      "userEmail": "admin@earist.edu.ph",
+      "userName": "Dr. Rogelio T. Mamaradlo",
+      "role": "admin",
+      "action": "System Initialized",
+      "details": "SFAO Central Scholarship Database operational.",
+      "ipAddress": "127.0.0.1",
+      "sessionHash": "SHA256-INIT-SYSTEM"
+    }
+  ]
+}

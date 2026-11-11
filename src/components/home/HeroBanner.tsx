@@ -8,17 +8,17 @@ interface HeroBannerProps {
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenScholarships }) => {
   return (
-    <section className="bg-[#CC181E] text-white">
+    <section className="bg-gradient-to-br from-maroon-primary via-maroon-dark to-maroon-deep text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* ========================================================= */}
           {/* LEFT COLUMN: Vertical Promotional Flyer/Poster Graphic   */}
           {/* ========================================================= */}
           <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-sm sm:max-w-md bg-white text-neutral-900 rounded-xl shadow-lg border border-neutral-100 overflow-hidden">
+            <div className="w-full max-w-sm sm:max-w-md bg-white text-neutral-900 rounded-2xl shadow-xl border border-neutral-100 overflow-hidden">
               {/* Poster Header */}
-              <div className="bg-[#A00000] text-white py-2 px-4 text-center">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-amber-300">
+              <div className="bg-maroon-dark text-white py-2.5 px-4 text-center">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-gold-primary">
                   OFFICIAL SFAO INSTITUTIONAL ADVISORY
                 </span>
               </div>
@@ -44,10 +44,10 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenScholarships }) =>
                 </div>
 
                 <div className="py-1">
-                  <h2 className="text-sm sm:text-base font-black text-[#CC181E] uppercase tracking-tight leading-snug">
+                  <h2 className="text-sm sm:text-base font-black text-maroon-primary uppercase tracking-tight leading-snug">
                     EARIST SCHOLARSHIP &amp; FINANCIAL ASSISTANCE SERVICES
                   </h2>
-                  <div className="mt-2 inline-block bg-amber-400 text-[#4a0000] font-black text-[11px] uppercase tracking-wider px-3 py-1 rounded">
+                  <div className="mt-2 inline-block bg-gold-primary text-maroon-deep font-black text-[11px] uppercase tracking-wider px-3 py-1 rounded">
                     ACADEMIC YEAR 2026–2027
                   </div>
                 </div>
@@ -58,7 +58,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenScholarships }) =>
                     Available Grants &amp; Subsidies:
                   </span>
                   <div className="flex flex-wrap gap-1.5 text-[10px] sm:text-[11px] font-bold">
-                    <span className="px-2 py-0.5 rounded bg-red-50 text-[#CC181E] border border-red-200 flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded bg-maroon-subtle text-maroon-primary border border-red-200 flex items-center gap-1">
                       <GraduationCap className="w-3 h-3" />
                       CHED UniFAST (TES)
                     </span>
@@ -77,7 +77,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenScholarships }) =>
 
                 {/* Qualifications Box */}
                 <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-200 text-left text-[11px] text-neutral-700 space-y-1">
-                  <span className="font-bold text-[#CC181E] block text-[11px] uppercase tracking-wide">
+                  <span className="font-bold text-maroon-primary block text-[11px] uppercase tracking-wide">
                     General Requirements:
                   </span>
                   <div className="space-y-0.5">
@@ -100,7 +100,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenScholarships }) =>
                   <button
                     type="button"
                     onClick={onOpenScholarships}
-                    className="w-full py-2.5 px-4 rounded font-bold text-xs uppercase tracking-wider bg-[#CC181E] hover:bg-[#A00000] text-white shadow-xs transition-colors cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors cursor-pointer"
                   >
                     VIEW DETAILS &amp; APPLICATION
                   </button>
@@ -113,24 +113,20 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ onOpenScholarships }) =>
           </div>
 
           {/* ========================================================= */}
-          {/* RIGHT COLUMN: STRICT MINIMALISM - ONLY TWO ELEMENTS       */}
-          {/* 1. TITLE                                                  */}
-          {/* 2. OUTLINE BUTTON                                         */}
+          {/* RIGHT COLUMN: STRICT MINIMALISM                           */}
           {/* ========================================================= */}
           <div className="flex flex-col items-start justify-center">
-            {/* 1. TITLE: Clean, large, white sans-serif uppercase text */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light text-white tracking-wide uppercase leading-tight font-sans">
               ANNUAL SCHOLARSHIP
               <br />
               PORTAL
             </h1>
 
-            {/* 2. BUTTON: Clean transparent outline button placed directly below the title */}
             <div className="pt-6 sm:pt-8">
               <button
                 type="button"
                 onClick={onOpenScholarships}
-                className="inline-block px-7 py-3 border-[1.5px] border-white bg-transparent hover:bg-white hover:text-[#CC181E] text-white text-xs sm:text-sm font-semibold tracking-wider uppercase transition-colors duration-200 cursor-pointer"
+                className="inline-block px-7 py-3 border-[1.5px] border-white bg-transparent hover:bg-white hover:text-maroon-primary text-white text-xs sm:text-sm font-semibold tracking-wider uppercase transition-colors duration-200 cursor-pointer rounded-lg shadow-sm"
               >
                 CLICK HERE TO SEE DETAILS
               </button>

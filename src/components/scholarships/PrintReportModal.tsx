@@ -39,25 +39,33 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
       {/* Floating Modal Card */}
       <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full border border-neutral-300 max-h-[95vh] flex flex-col overflow-hidden">
         {/* Top Control Bar (Hidden in Print) */}
-        <div className="no-print bg-[#4a0000] text-white px-6 py-3.5 flex items-center justify-between border-b border-amber-400">
-          <div className="flex items-center gap-2">
-            <Printer className="w-4 h-4 text-amber-300" />
-            <span className="text-xs font-bold uppercase tracking-wider">
-              Institutional Document Print & PDF Preview
-            </span>
+        <div className="no-print bg-white text-neutral-900 px-6 py-3.5 flex items-center justify-between border-b border-neutral-200">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center">
+              <Printer className="w-4 h-4 text-maroon-primary" />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold text-neutral-900 uppercase tracking-wide">
+                Institutional Document Print &amp; PDF Preview
+              </h2>
+              <p className="text-[11px] text-neutral-500 font-sans">Official SFAO scholarship audit report</p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
+              type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-300 text-[#4a0000] shadow-sm transition-all"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-maroon-primary hover:bg-maroon-hover text-white shadow-2xs transition-colors cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
-              <span>Trigger Browser Print / Save as PDF</span>
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print / Save as PDF</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-neutral-200 transition-colors"
+              className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+              aria-label="Close preview"
             >
               <X className="w-5 h-5" />
             </button>
@@ -69,14 +77,14 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
           <div className="printable-report-area bg-white mx-auto p-8 sm:p-12 shadow-md border border-neutral-200 max-w-4xl text-neutral-900 font-serif leading-normal">
             
             {/* 1. Official Institutional Letterhead */}
-            <div className="flex items-center justify-between pb-4 border-b-2 border-[#800000] gap-4">
+            <div className="flex items-center justify-between pb-4 border-b-2 border-maroon-primary gap-4">
               <EaristLogo size={68} lightMode={false} />
               
               <div className="text-center flex-1 font-sans">
                 <p className="text-[10px] tracking-widest uppercase font-semibold text-neutral-600">
                   Republic of the Philippines
                 </p>
-                <h1 className="text-base sm:text-lg font-black text-[#800000] tracking-wide uppercase leading-tight">
+                <h1 className="text-base sm:text-lg font-black text-maroon-primary tracking-wide uppercase leading-tight">
                   Eulogio "Amang" Rodriguez Institute of Science and Technology
                 </h1>
                 <p className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
@@ -89,8 +97,8 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
               {/* Philippine Bagong Pilipinas / Quality Seal Placeholder */}
               <div className="text-center font-sans hidden sm:block">
-                <div className="w-16 h-16 rounded-full border-2 border-amber-500 bg-amber-50 flex flex-col items-center justify-center p-1">
-                  <span className="text-[8px] font-black text-[#800000] leading-none text-center">
+                <div className="w-16 h-16 rounded-full border-2 border-gold-primary bg-gold-light/20 flex flex-col items-center justify-center p-1">
+                  <span className="text-[8px] font-black text-maroon-primary leading-none text-center">
                     CHED UniFAST
                   </span>
                   <span className="text-[7px] text-neutral-600 font-bold mt-1">ACCREDITED</span>
@@ -103,7 +111,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               <h2 className="text-base sm:text-lg font-black tracking-wider uppercase text-neutral-900">
                 Weekly Scholarship Accomplishment & Verification Report
               </h2>
-              <p className="text-xs font-bold text-[#800000] uppercase tracking-wide">
+              <p className="text-xs font-bold text-maroon-primary uppercase tracking-wide">
                 1st Semester, Academic Year 2026-2027
               </p>
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-xs text-neutral-600 pt-1">
@@ -123,7 +131,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
             {/* 3. Executive KPI Summary Table */}
             <div className="mb-6 font-sans">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#800000] mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-maroon-primary mb-2">
                 I. Executive Summary & Weekly Rollup Metrics
               </h3>
               <table className="w-full text-xs border border-neutral-300">
@@ -140,7 +148,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                 </thead>
                 <tbody>
                   <tr className="font-semibold">
-                    <td className="border border-neutral-300 p-2 text-center text-sm font-bold text-[#800000]">{kpis.totalSubmitted}</td>
+                    <td className="border border-neutral-300 p-2 text-center text-sm font-bold text-maroon-primary">{kpis.totalSubmitted}</td>
                     <td className="border border-neutral-300 p-2 text-center text-sm font-bold text-blue-700">{kpis.verifiedDocuments}</td>
                     <td className="border border-neutral-300 p-2 text-center text-sm font-bold text-emerald-700">{kpis.approvedCount}</td>
                     <td className="border border-neutral-300 p-2 text-center text-sm font-bold text-cyan-700">{kpis.endorsedCount}</td>
@@ -154,7 +162,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
             {/* 4. Detailed Applicant Roster Table */}
             <div className="mb-8 font-sans">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#800000] mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-maroon-primary mb-2">
                 II. Individual Evaluated Beneficiaries Roster
               </h3>
               <table className="w-full text-[10px] border border-neutral-300 leading-tight">
@@ -179,19 +187,19 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                     return (
                       <tr key={app.id} className="border-b border-neutral-300">
                         <td className="border border-neutral-300 p-1.5 text-center font-bold">{idx + 1}</td>
-                        <td className="border border-neutral-300 p-1.5 font-mono font-bold text-[#800000]">{app.id}</td>
+                        <td className="border border-neutral-300 p-1.5 font-mono font-bold text-maroon-primary">{app.id}</td>
                         <td className="border border-neutral-300 p-1.5">
                           <span className="font-bold block">{app.studentName}</span>
                           <span className="text-[9px] text-neutral-500 font-mono">{app.studentId}</span>
                         </td>
                         <td className="border border-neutral-300 p-1.5">
                           <span>{app.course}</span>
-                          <span className="text-[9px] block text-neutral-500">[{app.college}] {app.yearAndSection}</span>
+                          <span className="text-[9px] block text-neutral-500">{app.college} • {app.yearAndSection}</span>
                         </td>
                         <td className="border border-neutral-300 p-1.5 font-semibold">{app.program}</td>
                         <td className="border border-neutral-300 p-1.5 text-center font-bold">{app.gwa.toFixed(2)}</td>
                         <td className="border border-neutral-300 p-1.5 text-center font-semibold">
-                          {verifiedDocs}/{totalDocs}
+                          {totalDocs === 0 ? '0/4 Missing' : `${verifiedDocs}/${totalDocs}`}
                         </td>
                         <td className="border border-neutral-300 p-1.5 font-bold">
                           {app.status}
@@ -257,16 +265,18 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
         {/* Modal Bottom Controls */}
         <div className="no-print bg-neutral-50 p-4 border-t border-neutral-200 flex justify-end gap-3">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-xs font-semibold text-neutral-600 bg-white border border-neutral-300 hover:bg-neutral-100 transition-colors"
+            className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-100 transition-colors cursor-pointer"
           >
             Close Preview
           </button>
           <button
+            type="button"
             onClick={handlePrint}
-            className="px-5 py-2 rounded-lg text-xs font-bold bg-[#800000] hover:bg-[#680000] text-white shadow-sm flex items-center gap-1.5 transition-colors"
+            className="px-5 py-2 rounded-lg text-xs font-semibold bg-maroon-primary hover:bg-maroon-hover text-white shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-amber-300" />
+            <Printer className="w-4 h-4 text-white" />
             <span>Print Report (PDF)</span>
           </button>
         </div>

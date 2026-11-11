@@ -160,7 +160,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                       if (input) input.indeterminate = someVisibleSelected;
                     }}
                     onChange={handleSelectAllOnPage}
-                    className="w-4 h-4 rounded border-neutral-300 text-[#800000] focus:ring-[#800000] cursor-pointer"
+                    className="w-4 h-4 rounded border-neutral-300 text-maroon-primary focus:ring-maroon-primary cursor-pointer"
                     aria-label="Select all applicants on page"
                   />
                 </th>
@@ -233,7 +233,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => onToggleSelect && onToggleSelect(app.id)}
-                        className="w-4 h-4 rounded border-neutral-300 text-[#800000] focus:ring-[#800000] cursor-pointer"
+                        className="w-4 h-4 rounded border-neutral-300 text-maroon-primary focus:ring-maroon-primary cursor-pointer"
                         aria-label={`Select ${app.studentName}`}
                       />
                     </td>
@@ -243,7 +243,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                       <button
                         type="button"
                         onClick={() => onViewDetails(app)}
-                        className="font-bold text-neutral-900 hover:text-[#A00000] transition-colors text-left block leading-tight truncate max-w-[220px]"
+                        className="font-bold text-neutral-900 hover:text-maroon-primary transition-colors text-left block leading-tight truncate max-w-[220px]"
                         title={app.studentName}
                       >
                         {app.studentName}
@@ -276,7 +276,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                       <span className="font-semibold text-neutral-800 block text-xs truncate max-w-[180px]">
                         {formatProgramName(app.program)}
                       </span>
-                      <span className="font-bold text-[11px] text-[#A00000] block mt-0.5">
+                      <span className="font-bold text-[11px] text-maroon-primary block mt-0.5">
                         {formatPHP(app.stipendAmount)}
                       </span>
                     </td>
@@ -287,7 +287,9 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                         type="button"
                         onClick={() => onViewDetails(app)}
                         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold transition-colors ${
-                          isAllDocsVerified
+                          totalDocsCount === 0
+                            ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                            : isAllDocsVerified
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                             : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
                         }`}
@@ -295,7 +297,9 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                       >
                         <Paperclip className="w-3 h-3 text-neutral-500" />
                         <span>
-                          {isAllDocsVerified
+                          {totalDocsCount === 0
+                            ? '0/4 Missing'
+                            : isAllDocsVerified
                             ? `${verifiedDocsCount}/${totalDocsCount} Verified`
                             : `${missingDocsCount}/${totalDocsCount} Missing`}
                         </span>
@@ -335,7 +339,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                         <button
                           type="button"
                           onClick={() => onViewDetails(app)}
-                          className="px-2.5 py-1.5 rounded-md text-xs font-semibold border border-neutral-300 bg-white text-neutral-700 hover:border-[#800000] hover:text-[#800000] hover:bg-red-50/40 transition-colors inline-flex items-center gap-1 shadow-2xs"
+                          className="px-2.5 py-1.5 rounded-md text-xs font-semibold border border-neutral-300 bg-white text-neutral-700 hover:border-maroon-primary hover:text-maroon-primary hover:bg-maroon-subtle/40 transition-colors inline-flex items-center gap-1 shadow-2xs"
                           title="Review complete applicant dossier"
                         >
                           <FileText className="w-3.5 h-3.5" />
@@ -347,7 +351,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                           onChange={(e) =>
                             onQuickUpdateStatus(app.id, e.target.value as ScholarshipStatus)
                           }
-                          className="text-[11px] font-medium py-1 px-1.5 border border-neutral-300 rounded-md bg-white text-neutral-700 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-[#800000] cursor-pointer"
+                          className="text-[11px] font-medium py-1 px-1.5 border border-neutral-300 rounded-md bg-white text-neutral-700 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-maroon-primary cursor-pointer"
                           aria-label={`Change status for ${app.studentName}`}
                         >
                           <option value="Approved">Approve</option>
@@ -371,7 +375,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
         <div className="font-medium text-neutral-700">
           Showing <span className="font-bold text-neutral-900">{totalRecords > 0 ? startIndex + 1 : 0}</span> to{' '}
           <span className="font-bold text-neutral-900">{endIndex}</span> of{' '}
-          <span className="font-bold text-[#800000]">810</span> applicants
+          <span className="font-bold text-maroon-primary">810</span> applicants
           {totalRecords < 810 && (
             <span className="text-[11px] text-neutral-500 ml-1">
               ({totalRecords} filtered)
@@ -390,7 +394,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="text-xs font-semibold py-1 px-2 border border-neutral-300 rounded-md bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-[#800000] cursor-pointer"
+              className="text-xs font-semibold py-1 px-2 border border-neutral-300 rounded-md bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-maroon-primary cursor-pointer"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
@@ -417,7 +421,7 @@ export const ScholarshipReportTable: React.FC<ScholarshipReportTableProps> = ({
                 onClick={() => setCurrentPage(pageNum)}
                 className={`min-w-[28px] h-7 px-2 rounded-md text-xs font-semibold transition-colors ${
                   pageNum === validCurrentPage
-                    ? 'bg-[#800000] text-white shadow-xs'
+                    ? 'bg-maroon-primary text-white shadow-xs'
                     : 'bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-100'
                 }`}
               >

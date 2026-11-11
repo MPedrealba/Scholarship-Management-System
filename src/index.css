@@ -1,16 +1,22 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --maroon-dark: #4e0000;
-    --maroon-primary: #800000;
-    --maroon-light: #991b1b;
-    --gold-primary: #ffc107;
-    --gold-accent: #d4af37;
-    --gold-dark: #b89628;
-    --gold-light: #fef08a;
-  }
+@theme {
+  --color-maroon-primary: #800000;
+  --color-maroon-hover: #680000;
+  --color-maroon-dark: #500000;
+  --color-maroon-deep: #380000;
+  --color-maroon-darkest: #240000;
+  --color-maroon-light: #990000;
+  --color-maroon-subtle: #fef2f2;
 
+  --color-gold-primary: #ffc107;
+  --color-gold-accent: #d4af37;
+  --color-gold-dark: #b89628;
+  --color-gold-light: #fef08a;
+  --color-gold-subtle: #fefce8;
+}
+
+@layer base {
   body {
     background-color: #f8fafc;
     color: #1e293b;

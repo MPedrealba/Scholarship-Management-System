@@ -34,7 +34,7 @@ export const CollegesGrid: React.FC<CollegesGridProps> = ({ onSelectCollegeFilte
       case 'CHM':
         return <Utensils className="w-5 h-5 text-amber-600" />;
       default:
-        return <GraduationCap className="w-5 h-5 text-[#800000]" />;
+        return <GraduationCap className="w-5 h-5 text-maroon-primary" />;
     }
   };
 
@@ -43,7 +43,7 @@ export const CollegesGrid: React.FC<CollegesGridProps> = ({ onSelectCollegeFilte
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[#800000] bg-red-50 px-2.5 py-1 rounded">
+            <span className="text-xs font-bold uppercase tracking-wider text-maroon-primary bg-maroon-subtle px-2.5 py-1 rounded border border-red-200">
               Academic Excellence
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight mt-2">
@@ -53,8 +53,8 @@ export const CollegesGrid: React.FC<CollegesGridProps> = ({ onSelectCollegeFilte
               Serving thousands of students across vocational, scientific, engineering, and technological disciplines with dedicated scholarship evaluators.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-neutral-500 bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200">
-            <Users className="w-4 h-4 text-[#800000]" />
+          <div className="flex items-center gap-2 text-xs font-semibold text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-lg border border-neutral-200">
+            <Users className="w-4 h-4 text-maroon-primary" />
             <span>1,300+ Total Active Grantees Monitored</span>
           </div>
         </div>
@@ -64,19 +64,19 @@ export const CollegesGrid: React.FC<CollegesGridProps> = ({ onSelectCollegeFilte
             <div
               key={col.code}
               onClick={() => onSelectCollegeFilter && onSelectCollegeFilter(col.code)}
-              className="group p-5 rounded-xl border border-neutral-200 bg-neutral-50/50 hover:bg-white hover:border-[#800000] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              className="group p-5 rounded-xl border border-neutral-200 bg-neutral-50/50 hover:bg-white hover:border-maroon-primary hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-extrabold px-2.5 py-0.5 rounded bg-white text-[#800000] border border-neutral-200 shadow-2xs group-hover:bg-[#800000] group-hover:text-amber-300 transition-colors">
+                  <span className="text-xs font-extrabold px-2.5 py-0.5 rounded bg-white text-maroon-primary border border-neutral-200 shadow-2xs group-hover:bg-maroon-primary group-hover:text-gold-primary transition-colors">
                     {col.code}
                   </span>
-                  <div className="p-2 rounded-lg bg-white border border-neutral-200 group-hover:border-amber-300 transition-colors">
+                  <div className="p-2 rounded-lg bg-white border border-neutral-200 group-hover:border-gold-accent transition-colors">
                     {getCollegeIcon(col.code)}
                   </div>
                 </div>
 
-                <h3 className="text-sm font-bold text-neutral-900 group-hover:text-[#800000] transition-colors leading-snug">
+                <h3 className="text-sm font-bold text-neutral-900 group-hover:text-maroon-primary transition-colors leading-snug">
                   {col.name}
                 </h3>
                 <p className="text-[11px] text-neutral-500 mt-1">Dean: {col.dean}</p>
@@ -84,7 +84,7 @@ export const CollegesGrid: React.FC<CollegesGridProps> = ({ onSelectCollegeFilte
 
               <div className="mt-4 pt-3 border-t border-neutral-200 flex items-center justify-between text-xs">
                 <span className="text-neutral-500">{col.programsCount} Degree Programs</span>
-                <span className="font-bold text-[#800000] bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
+                <span className="font-bold text-maroon-primary bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
                   {col.activeGrantees} Scholars
                 </span>
               </div>

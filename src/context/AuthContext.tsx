@@ -5,6 +5,7 @@ import {
   SUPER_ADMIN_USER,
   DEFAULT_STUDENT_USER,
 } from '../data/authPresets';
+import { loginApi } from '../utils/api';
 
 const AUTH_STORAGE_KEY = 'earist_sfao_auth_session_v1';
 
@@ -17,8 +18,9 @@ export interface AuthContextType {
   loginWithCredentials: (
     usernameOrEmail: string,
     password: string
-  ) => { success: boolean; user?: AuthUser; error?: string };
+  ) => Promise<{ success: boolean; user?: AuthUser; error?: string }>;
   logoutToStudent: () => void;
+  updateUserProfile: (updates: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,11 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const closeLoginModal = () => setIsLoginModalOpen(false);
 
   const loginAsRole = (role: UserRoleType, college: CollegeCode = 'CIT') => {
+    let email = 'student@earist.edu.ph';
     if (role === 'student') {
+      email = 'student@earist.edu.ph';
       setCurrentUser(DEFAULT_STUDENT_USER);
     } else if (role === 'superadmin') {
+      email = 'admin@earist.edu.ph';
       setCurrentUser(SUPER_ADMIN_USER);
     } else if (role === 'evaluator') {
+      email = 'evaluator@earist.edu.ph';
       const preset = PRECONFIGURED_EVALUATORS[college] || PRECONFIGURED_EVALUATORS.CIT;
       setCurrentUser({
         role: 'evaluator',
@@ -66,50 +72,103 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: preset.title,
       });
     }
+
+    // Acquire valid JWT in background for demo switching
+    loginApi(email, 'password123')
+      .then((res) => {
+        if (res.token) {
+          localStorage.setItem('earist_sfao_jwt', res.token);
+        }
+      })
+      .catch(() => {});
+
     setIsLoginModalOpen(false);
   };
 
-  const loginWithCredentials = (
+  const loginWithCredentials = async (
     usernameOrEmail: string,
     password: string
-  ): { success: boolean; user?: AuthUser; error?: string } => {
-    const input = usernameOrEmail.trim().toLowerCase();
+  ): Promise<{ success: boolean; user?: AuthUser; error?: string }> => {
+    const input = usernameOrEmail.trim();
 
     if (!input || !password) {
       return { success: false, error: 'Please enter your username/email and password.' };
     }
 
-    if (password.length < 3) {
-      return {
-        success: false,
-        error: 'Invalid institutional credentials. Please check your username and password.',
-      };
+    try {
+      const data = await loginApi(input, password);
+      if (data.success && data.user) {
+        if (data.token) {
+          localStorage.setItem('earist_sfao_jwt', data.token);
+        }
+
+        const backendRole = data.user.role;
+        const mappedRole: UserRoleType = backendRole === 'admin' ? 'superadmin' : backendRole;
+        const college = (data.user.college as CollegeCode) || 'CIT';
+        const collegeName = college
+          ? PRECONFIGURED_EVALUATORS[college]?.collegeName || `College of ${college}`
+          : undefined;
+
+        const authUser: AuthUser = {
+          role: mappedRole,
+          name: data.user.name,
+          email: data.user.email,
+          college: mappedRole === 'evaluator' ? college : (data.user.college as CollegeCode) || undefined,
+          collegeName: mappedRole === 'superadmin' ? 'All Colleges (Institutional Administration)' : collegeName,
+          title:
+            mappedRole === 'superadmin'
+              ? 'Head of Student Financial Assistance'
+              : mappedRole === 'evaluator'
+              ? `${college} Scholarship Evaluator`
+              : 'Undergraduate Student Scholar',
+          employeeId: data.user.employeeId || undefined,
+          studentId: data.user.studentNumber || undefined,
+        };
+
+        setCurrentUser(authUser);
+        setIsLoginModalOpen(false);
+        return { success: true, user: authUser };
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Authentication failed';
+      if (
+        errMsg.toLowerCase().includes('invalid') ||
+        errMsg.toLowerCase().includes('suspended') ||
+        errMsg.toLowerCase().includes('deactivated')
+      ) {
+        return { success: false, error: errMsg };
+      }
+      console.warn('Backend login unavailable, falling back to institutional presets:', errMsg);
     }
 
-    // 1. Super Admin check
-    if (input.includes('admin') || input === 'director' || input === 'sfao.director@earist.edu.ph') {
+    // Offline / Demo fallback
+    const inputLower = input.toLowerCase();
+    if (inputLower.includes('admin') || inputLower === 'director' || inputLower === 'sfao.director@earist.edu.ph') {
       setCurrentUser(SUPER_ADMIN_USER);
       setIsLoginModalOpen(false);
       return { success: true, user: SUPER_ADMIN_USER };
     }
 
-    // 2. College Evaluator check
     let targetCollege: CollegeCode = 'CIT';
-    if (input.includes('cafa') || input.includes('ericoff') || input.includes('delarosa')) {
+    if (inputLower.includes('cafa') || inputLower.includes('ericoff') || inputLower.includes('delarosa')) {
       targetCollege = 'CAFA';
-    } else if (input.includes('cas') || input.includes('marlon') || input.includes('santos')) {
+    } else if (inputLower.includes('cas') || inputLower.includes('marlon') || inputLower.includes('santos')) {
       targetCollege = 'CAS';
-    } else if (input.includes('cba') || input.includes('corazon') || input.includes('reyes')) {
+    } else if (inputLower.includes('cba') || inputLower.includes('corazon') || inputLower.includes('reyes')) {
       targetCollege = 'CBA';
-    } else if (input.includes('ced') || input.includes('teresa') || input.includes('garcia')) {
+    } else if (inputLower.includes('ced') || inputLower.includes('teresa') || inputLower.includes('garcia')) {
       targetCollege = 'CED';
-    } else if (input.includes('cen') || input.includes('ricardo') || input.includes('bautista')) {
+    } else if (inputLower.includes('cen') || inputLower.includes('ricardo') || inputLower.includes('bautista')) {
       targetCollege = 'CEN';
-    } else if (input.includes('chm') || input.includes('morales')) {
+    } else if (inputLower.includes('chm') || inputLower.includes('morales')) {
       targetCollege = 'CHM';
-    } else if (input.includes('cit') || input.includes('noel') || input.includes('carpio')) {
+    } else if (inputLower.includes('cit') || inputLower.includes('noel') || inputLower.includes('carpio')) {
       targetCollege = 'CIT';
-    } else if (input.includes('evaluator') || input.endsWith('@earist.edu.ph')) {
+    } else if (inputLower.includes('student') || inputLower.includes('juan')) {
+      setCurrentUser(DEFAULT_STUDENT_USER);
+      setIsLoginModalOpen(false);
+      return { success: true, user: DEFAULT_STUDENT_USER };
+    } else if (inputLower.includes('evaluator') || inputLower.endsWith('@earist.edu.ph')) {
       targetCollege = 'CIT';
     } else {
       return {
@@ -133,8 +192,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logoutToStudent = () => {
+    try {
+      localStorage.removeItem('earist_sfao_jwt');
+    } catch (e) {
+      console.warn('Failed to remove JWT token from storage', e);
+    }
     setCurrentUser(DEFAULT_STUDENT_USER);
     setIsLoginModalOpen(false);
+  };
+
+  const updateUserProfile = (updates: Partial<AuthUser>) => {
+    setCurrentUser((prev) => {
+      const updated: AuthUser = { ...prev, ...updates };
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to persist updated profile', e);
+      }
+      return updated;
+    });
   };
 
   return (
@@ -147,6 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginAsRole,
         loginWithCredentials,
         logoutToStudent,
+        updateUserProfile,
       }}
     >
       {children}

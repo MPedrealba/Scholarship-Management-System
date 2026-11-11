@@ -19,6 +19,14 @@ export interface AuthUser {
   college?: CollegeCode;
   collegeName?: string;
   title: string;
+  employeeId?: string;
+  studentId?: string;
+  course?: string;
+  yearLevel?: string;
+  contactNumber?: string;
+  personalEmail?: string;
+  homeAddress?: string;
+  lastLogin?: string;
 }
 
 export interface ApplicationAuditEntry {
@@ -63,6 +71,7 @@ export interface ScholarshipApplication {
   flagReason?: string;
   lastUpdated: string;
   stipendAmount: number;
+  academicTerm?: string;
   auditTrail?: ApplicationAuditEntry[];
 }
 
@@ -127,4 +136,58 @@ export interface CollegeInfo {
   programsCount: number;
   activeGrantees: number;
   iconName: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  _id?: string;
+  recipientRole: 'superadmin' | 'evaluator' | 'student' | 'all';
+  recipientCollege?: string | null;
+  recipientStudentNumber?: string | null;
+  targetRefNo?: string | null;
+  title: string;
+  message: string;
+  type: 'submission' | 'endorsement' | 'flagged' | 'approval' | 'quota' | 'system';
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AcademicTerm {
+  id?: string;
+  _id?: string;
+  termName: string;
+  isActive: boolean;
+  isArchived: boolean;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  totalApplications?: number;
+  approvedScholars?: number;
+  disbursedAmount?: number;
+  createdAt?: string;
+}
+
+export interface StorageTelemetry {
+  totalBytes: number;
+  totalMB: number;
+  fileCount: number;
+  maxStorageMB: number;
+  usedPercent: number;
+}
+
+export interface StorageStatusResponse {
+  success: boolean;
+  storage: StorageTelemetry;
+  mongoStatus: string;
+  isMongoConnected: boolean;
+  orphanedFiles: {
+    count: number;
+    files: Array<{
+      fileName: string;
+      fileSize: number;
+      formattedSize: string;
+      modifiedAt: string;
+    }>;
+    orphanedBytes: number;
+    orphanedMB: number;
+  };
 }

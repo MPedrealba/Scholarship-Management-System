@@ -9,6 +9,7 @@ import {
   loadApplications,
   saveApplications,
   resetApplicationsToDefault,
+  syncApplicationsWithApi,
 } from '../../utils/storageUtils';
 import { exportApplicationsToCSV } from '../../utils/exportUtils';
 import { ScholarshipReportTable } from './ScholarshipReportTable';
@@ -18,6 +19,8 @@ import { SubmitApplicationModal } from './SubmitApplicationModal';
 import { TrackApplicationModal } from './TrackApplicationModal';
 import { ScholarshipAnalyticsTab } from './ScholarshipAnalyticsTab';
 import { useAuth } from '../../context/AuthContext';
+import { DashboardLayout } from '../common/DashboardLayout';
+import type { SidebarNavItem } from '../common/PortalSidebar';
 import {
   GraduationCap,
   Search,
@@ -31,6 +34,7 @@ import {
   Printer,
   RotateCcw,
   Plus,
+  PlusCircle,
   BarChart3,
   FileSpreadsheet,
   BookOpen,
@@ -38,7 +42,10 @@ import {
   Building,
   FileDown,
   ArrowLeft,
+  FileCheck,
+  AlertTriangle,
 } from 'lucide-react';
+import { UserProfileView } from '../profile/UserProfileView';
 
 interface ScholarshipModuleProps {
   onBackToHome: () => void;
@@ -49,7 +56,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
   onBackToHome,
   initialCollegeFilter = 'All',
 }) => {
-  const { currentUser, openLoginModal } = useAuth();
+  const { currentUser } = useAuth();
 
   // Primary Separation of Concerns: Default is Public Portal (or Evaluator if logged in)
   const [viewMode, setViewMode] = useState<'public' | 'evaluator'>(() => {
@@ -68,6 +75,54 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
 
   // Active catalog filter on Public view
   const [catalogCategory, setCatalogCategory] = useState<'all' | 'national' | 'institutional' | 'lgu'>('all');
+
+  // Student portal active navigation tab
+  const [studentTab, setStudentTab] = useState<'programs' | 'requirements' | 'profile'>('programs');
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  const studentSidebarItems = useMemo<SidebarNavItem[]>(() => [
+    {
+      id: 'programs',
+      label: 'Scholarship Programs',
+      icon: GraduationCap,
+    },
+    {
+      id: 'apply',
+      label: 'Apply Online',
+      icon: PlusCircle,
+      onClick: () => handleOpenApplyModal(),
+    },
+    {
+      id: 'track',
+      label: 'Track Status',
+      icon: Search,
+      onClick: () => setTrackModalOpen(true),
+    },
+    {
+      id: 'requirements',
+      label: 'Requirements Checklist',
+      icon: FileCheck,
+    },
+  ], []);
+
+  const studentSectionMeta = useMemo(() => {
+    if (studentTab === 'profile') {
+      return {
+        title: 'Student Profile & Account Settings',
+        subtitle: 'Review enrolled academic records, contact info, and manage password security',
+      };
+    }
+    if (studentTab === 'requirements') {
+      return {
+        title: 'Requirements Checklist & Forms',
+        subtitle: 'General document verification guidelines, RA 10173 compliance, and official templates',
+      };
+    }
+    return {
+      title: 'Scholarship Programs Catalog',
+      subtitle: 'CHED UniFAST, Institutional Honors, and LGU Educational Subsidies for A.Y. 2026–2027',
+    };
+  }, [studentTab]);
 
   // Filters State for evaluator table
   const [filters, setFilters] = useState<ReportFilterState>({
@@ -100,12 +155,52 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
     }
   }, [currentUser]);
 
+  // Sync applications from live server on mount
+  useEffect(() => {
+    syncApplicationsWithApi()
+      .then((apps) => {
+        if (apps && apps.length > 0) {
+          setApplications(apps);
+        }
+      })
+      .catch((err) => console.warn('Could not sync applications in ScholarshipModule:', err));
+  }, []);
+
   // Modals visibility
   const [selectedApplication, setSelectedApplication] = useState<ScholarshipApplication | null>(null);
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [trackModalOpen, setTrackModalOpen] = useState(false);
+  const [initialTrackQuery, setInitialTrackQuery] = useState<string>('');
   const [preselectedProgram, setPreselectedProgram] = useState<ScholarshipProgram | undefined>(undefined);
+
+  // Parse direct QR / URL tracking query (?track=APP-2026-XXXX or #scholarships?track=APP-2026-XXXX)
+  useEffect(() => {
+    const handleUrlTrack = () => {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      let trackRef: string | null = null;
+
+      if (hash.includes('track=')) {
+        const parts = hash.split('track=');
+        if (parts[1]) {
+          trackRef = decodeURIComponent(parts[1].split('&')[0]);
+        }
+      } else if (search.includes('track=')) {
+        const params = new URLSearchParams(search);
+        trackRef = params.get('track');
+      }
+
+      if (trackRef) {
+        setInitialTrackQuery(trackRef);
+        setTrackModalOpen(true);
+      }
+    };
+
+    handleUrlTrack();
+    window.addEventListener('hashchange', handleUrlTrack);
+    return () => window.removeEventListener('hashchange', handleUrlTrack);
+  }, []);
 
   // Batch Selection IDs
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -155,13 +250,9 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
       if (filters.program !== 'All' && filters.program !== 'All Programs') {
-        const p = filters.program;
-        if (p === 'CHED UniFAST TES' && !app.program.includes('TES')) return false;
-        if (p === 'CHED TDP-SUC' && !app.program.includes('TDP')) return false;
-        if (p === 'DOST-SEI' && !app.program.includes('DOST')) return false;
-        if (p === 'Academic Honor' && !app.program.includes('Academic')) return false;
-        if (p === 'Student Assistantship' && !app.program.includes('Assistantship') && !app.program.includes('SAP')) return false;
-        if (p === 'LGU/Barangay' && !app.program.includes('Barangay') && !app.program.includes('LGU')) return false;
+        if (app.program !== filters.program) {
+          return false;
+        }
       }
       if (filters.status !== 'All' && app.status !== filters.status) return false;
       if (filters.college !== 'All' && filters.college !== 'All Colleges' && app.college !== filters.college) {
@@ -270,16 +361,15 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
 
   // Reset to default seed records
   const handleResetToDefault = () => {
-    if (
-      window.confirm(
-        'Restore the official EARIST demonstration student records? Any newly submitted applications will be reset.'
-      )
-    ) {
-      const reset = resetApplicationsToDefault();
-      setApplications(reset);
-      setSelectedIds([]);
-      setToastMessage('Scholarship database restored to initial official state.');
-    }
+    setIsResetConfirmOpen(true);
+  };
+
+  const executeResetToDefault = () => {
+    const reset = resetApplicationsToDefault();
+    setApplications(reset);
+    setSelectedIds([]);
+    setIsResetConfirmOpen(false);
+    setToastMessage('Scholarship database restored to initial official state.');
   };
 
   // Batch Selection Handlers
@@ -377,76 +467,87 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
       {/* VIEW A: AUTHENTIC PUBLIC-FACING STUDENT SCHOLARSHIP PORTAL (DEFAULT)     */}
       {/* ========================================================================= */}
       {viewMode === 'public' && (
-        <div>
-          {/* 1. HERO HEADER: Clean EARIST Red (#CC181E) Banner */}
-          <section className="bg-[#CC181E] text-white border-b-4 border-amber-400">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-              {/* Breadcrumbs */}
-              <nav className="flex items-center gap-1.5 text-xs text-white/80 mb-4 select-none">
+        <DashboardLayout
+          role="student"
+          activeTab={studentTab}
+          onTabChange={(tab) => setStudentTab(tab as 'programs' | 'requirements' | 'profile')}
+          title={studentSectionMeta.title}
+          subtitle={studentSectionMeta.subtitle}
+          sidebarItems={studentSidebarItems}
+          onSignOut={onBackToHome}
+          headerActions={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleOpenApplyModal()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-maroon-primary hover:bg-maroon-hover text-white shadow-2xs transition-colors cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Apply Online</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrackModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border border-neutral-300 transition-colors cursor-pointer shadow-2xs"
+              >
+                <Search className="w-3.5 h-3.5 text-neutral-400" />
+                <span className="hidden sm:inline">Track Status</span>
+              </button>
+              <button
+                type="button"
+                onClick={onBackToHome}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer ml-1"
+                title="Back to EARIST Homepage"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Homepage</span>
+              </button>
+            </div>
+          }
+        >
+          {studentTab === 'profile' ? (
+            <UserProfileView />
+          ) : (
+            <div className="max-w-7xl mx-auto space-y-8">
+            {/* Quick Hero Banner in Main Area */}
+            <div className="bg-gradient-to-br from-maroon-primary via-maroon-dark to-maroon-deep text-white rounded-2xl p-6 sm:p-8 shadow-xs border-b-4 border-gold-accent space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-gold-light text-xs font-bold uppercase tracking-wider">
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>OFFICIAL SFAO STUDENT APPLICATION PORTAL • A.Y. 2026–2027</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight font-sans">
+                Campus Scholarship &amp; Financial Assistance Services
+              </h2>
+              <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed">
+                Empowering bona fide Red Foxes through equitable access to tertiary education under Republic Act 10931 (CHED UniFAST), institutional academic honors, and student assistantships.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
-                  onClick={onBackToHome}
-                  className="hover:underline font-medium"
+                  type="button"
+                  onClick={() => handleOpenApplyModal()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-white text-maroon-primary hover:bg-gold-primary hover:text-maroon-deep shadow-sm transition-all cursor-pointer"
                 >
-                  Home
+                  <GraduationCap className="w-4 h-4 text-maroon-primary" />
+                  <span>Apply for Scholarship Online</span>
                 </button>
-                <ChevronRight className="w-3.5 h-3.5 text-white/60" />
-                <span>Student Services</span>
-                <ChevronRight className="w-3.5 h-3.5 text-white/60" />
-                <span className="font-semibold text-amber-300">Scholarship &amp; Financial Assistance</span>
-              </nav>
-
-              <div className="space-y-4 max-w-4xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-amber-300 text-xs font-bold uppercase tracking-wider">
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  <span>OFFICIAL SFAO STUDENT APPLICATION PORTAL • A.Y. 2026–2027</span>
-                </div>
-
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase font-sans leading-none">
-                  CAMPUS SCHOLARSHIP &amp; FINANCIAL ASSISTANCE SERVICES
-                </h1>
-
-                <p className="text-sm sm:text-base text-amber-100/90 font-medium tracking-wide uppercase">
-                  Eulogio &apos;Amang&apos; Rodriguez Institute of Science and Technology • Office of Student Financial Assistance (SFAO)
-                </p>
-
-                <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed pt-1">
-                  Empowering bona fide Red Foxes through equitable access to tertiary education. Apply for government subsidies under Republic Act 10931 (CHED UniFAST), institutional academic honors, or student assistantships.
-                </p>
-
-                {/* 2 Primary Student Action Buttons */}
-                <div className="flex flex-wrap items-center gap-3.5 pt-4">
-                  {/* Action 1: Apply Online */}
-                  <button
-                    type="button"
-                    onClick={() => handleOpenApplyModal()}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-lg text-xs sm:text-sm font-black uppercase tracking-wider bg-white text-[#CC181E] hover:bg-amber-300 hover:text-[#4a0000] shadow-md transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                  >
-                    <GraduationCap className="w-4 h-4 text-[#CC181E]" />
-                    <span>[ Apply for Scholarship Online ]</span>
-                  </button>
-
-                  {/* Action 2: Track Status */}
-                  <button
-                    type="button"
-                    onClick={() => setTrackModalOpen(true)}
-                    className="inline-flex items-center gap-2 px-5 py-3.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider bg-transparent border-2 border-white text-white hover:bg-white hover:text-[#CC181E] transition-all cursor-pointer"
-                  >
-                    <Search className="w-4 h-4 text-amber-300" />
-                    <span>[ Track Application Status ]</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setTrackModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-transparent border border-white text-white hover:bg-white hover:text-maroon-primary transition-all cursor-pointer"
+                >
+                  <Search className="w-4 h-4 text-gold-light" />
+                  <span>Track Application Status</span>
+                </button>
               </div>
             </div>
-          </section>
 
-          {/* MAIN PUBLIC CONTENT CONTAINER */}
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-14">
-            {/* ========================================================================= */}
-            {/* 2. 4-STEP APPLICATION PROCEDURE (INFOGRAPHIC WORKFLOW)                   */}
-            {/* ========================================================================= */}
+            {/* TAB 1: PROGRAMS */}
+            {studentTab === 'programs' && (
+              <>
+                {/* 2. 4-STEP APPLICATION PROCEDURE (INFOGRAPHIC WORKFLOW) */}
             <section className="space-y-6">
               <div className="text-center max-w-2xl mx-auto space-y-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[#CC181E] block">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-maroon-primary block">
                   Application Guidelines &amp; Roadmap
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight font-sans">
@@ -460,8 +561,8 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
               {/* 4-Column Step Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {/* Step 1 */}
-                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-[#CC181E] transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-red-50 text-[#CC181E] font-black text-base flex items-center justify-center border border-red-200">
+                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-maroon-primary transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-maroon-subtle text-maroon-primary font-black text-base flex items-center justify-center border border-red-200">
                     1
                   </div>
                   <h3 className="text-sm font-bold text-neutral-900">
@@ -470,15 +571,15 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                   <p className="text-xs text-neutral-600 leading-relaxed">
                     Review statutory GWA requirements (≥ 2.50) and low-income / indigency criteria specified for your target grant program.
                   </p>
-                  <div className="pt-2 text-[10px] font-bold text-[#CC181E] uppercase tracking-wider flex items-center gap-1">
+                  <div className="pt-2 text-[10px] font-bold text-maroon-primary uppercase tracking-wider flex items-center gap-1">
                     <span>Step 01 • Review Criteria</span>
                     <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
 
                 {/* Step 2 */}
-                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-[#CC181E] transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-amber-50 text-[#800000] font-black text-base flex items-center justify-center border border-amber-200">
+                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-maroon-primary transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-amber-50 text-maroon-primary font-black text-base flex items-center justify-center border border-amber-200">
                     2
                   </div>
                   <h3 className="text-sm font-bold text-neutral-900">
@@ -494,7 +595,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                 </div>
 
                 {/* Step 3 */}
-                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-[#CC181E] transition-colors">
+                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-maroon-primary transition-colors">
                   <div className="w-10 h-10 rounded-lg bg-sky-50 text-sky-800 font-black text-base flex items-center justify-center border border-sky-200">
                     3
                   </div>
@@ -511,7 +612,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                 </div>
 
                 {/* Step 4 */}
-                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-[#CC181E] transition-colors">
+                <div className="bg-white rounded-xl p-5 border border-neutral-200 shadow-xs space-y-3 relative overflow-hidden group hover:border-maroon-primary transition-colors">
                   <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-800 font-black text-base flex items-center justify-center border border-emerald-200">
                     4
                   </div>
@@ -535,7 +636,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
             <section className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-neutral-200">
                 <div className="space-y-1">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#CC181E] block">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-maroon-primary block">
                     Available Financial Assistance
                   </span>
                   <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight font-sans">
@@ -553,7 +654,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     onClick={() => setCatalogCategory('all')}
                     className={`px-3 py-1.5 rounded-lg transition-colors ${
                       catalogCategory === 'all'
-                        ? 'bg-[#A00000] text-white shadow-xs'
+                        ? 'bg-maroon-primary text-white shadow-xs'
                         : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                     }`}
                   >
@@ -564,7 +665,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     onClick={() => setCatalogCategory('national')}
                     className={`px-3 py-1.5 rounded-lg transition-colors ${
                       catalogCategory === 'national'
-                        ? 'bg-[#A00000] text-white shadow-xs'
+                        ? 'bg-maroon-primary text-white shadow-xs'
                         : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                     }`}
                   >
@@ -575,7 +676,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     onClick={() => setCatalogCategory('institutional')}
                     className={`px-3 py-1.5 rounded-lg transition-colors ${
                       catalogCategory === 'institutional'
-                        ? 'bg-[#A00000] text-white shadow-xs'
+                        ? 'bg-maroon-primary text-white shadow-xs'
                         : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                     }`}
                   >
@@ -586,7 +687,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     onClick={() => setCatalogCategory('lgu')}
                     className={`px-3 py-1.5 rounded-lg transition-colors ${
                       catalogCategory === 'lgu'
-                        ? 'bg-[#A00000] text-white shadow-xs'
+                        ? 'bg-maroon-primary text-white shadow-xs'
                         : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                     }`}
                   >
@@ -612,7 +713,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <h3 className="text-base font-bold text-neutral-900 leading-snug">
                         CHED UniFAST Tertiary Education Subsidy (TES)
                       </h3>
-                      <div className="text-lg font-black text-[#A00000]">
+                      <div className="text-lg font-black text-maroon-primary">
                         PHP 20,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
                       </div>
                       <p className="text-xs text-neutral-600 leading-relaxed">
@@ -630,10 +731,10 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => handleOpenApplyModal('Tertiary Education Subsidy (TES)')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#A00000] hover:bg-[#800000] text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>[ Apply for this Grant ]</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Apply for Grant</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
                     </button>
                   </div>
                 )}
@@ -653,7 +754,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <h3 className="text-base font-bold text-neutral-900 leading-snug">
                         CHED Tulong Dunong Program (TDP-SUC)
                       </h3>
-                      <div className="text-lg font-black text-[#A00000]">
+                      <div className="text-lg font-black text-maroon-primary">
                         PHP 15,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
                       </div>
                       <p className="text-xs text-neutral-600 leading-relaxed">
@@ -671,10 +772,10 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => handleOpenApplyModal('CHED TDP')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#A00000] hover:bg-[#800000] text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>[ Apply for this Grant ]</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Apply for Grant</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
                     </button>
                   </div>
                 )}
@@ -694,7 +795,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <h3 className="text-base font-bold text-neutral-900 leading-snug">
                         DOST-SEI Science &amp; Technology Grant
                       </h3>
-                      <div className="text-lg font-black text-[#A00000]">
+                      <div className="text-lg font-black text-maroon-primary">
                         PHP 25,000 <span className="text-xs font-normal text-neutral-500">/ Sem + Book Allowance</span>
                       </div>
                       <p className="text-xs text-neutral-600 leading-relaxed">
@@ -712,10 +813,10 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => handleOpenApplyModal('DOST-SEI Grant')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#A00000] hover:bg-[#800000] text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>[ Apply for this Grant ]</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Apply for Grant</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
                     </button>
                   </div>
                 )}
@@ -735,7 +836,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <h3 className="text-base font-bold text-neutral-900 leading-snug">
                         Academic Honors (President&apos;s &amp; Dean&apos;s List)
                       </h3>
-                      <div className="text-lg font-black text-[#A00000]">
+                      <div className="text-lg font-black text-maroon-primary">
                         PHP 18,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
                       </div>
                       <p className="text-xs text-neutral-600 leading-relaxed">
@@ -753,10 +854,10 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => handleOpenApplyModal('Academic Excellence Grant')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#A00000] hover:bg-[#800000] text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>[ Apply for this Grant ]</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Apply for Grant</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
                     </button>
                   </div>
                 )}
@@ -776,7 +877,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <h3 className="text-base font-bold text-neutral-900 leading-snug">
                         Student Assistantship Program (SAP)
                       </h3>
-                      <div className="text-lg font-black text-[#A00000]">
+                      <div className="text-lg font-black text-maroon-primary">
                         PHP 8,000 <span className="text-xs font-normal text-neutral-500">/ Semester Allowance</span>
                       </div>
                       <p className="text-xs text-neutral-600 leading-relaxed">
@@ -794,10 +895,10 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => handleOpenApplyModal('Student Assistantship Program (SAP)')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#A00000] hover:bg-[#800000] text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>[ Apply for this Grant ]</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Apply for Grant</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
                     </button>
                   </div>
                 )}
@@ -817,7 +918,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <h3 className="text-base font-bold text-neutral-900 leading-snug">
                         Manila City &amp; Congressional Educational Grants
                       </h3>
-                      <div className="text-lg font-black text-[#A00000]">
+                      <div className="text-lg font-black text-maroon-primary">
                         PHP 10,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
                       </div>
                       <p className="text-xs text-neutral-600 leading-relaxed">
@@ -835,31 +936,32 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => handleOpenApplyModal('Barangay/LGU Assistance')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#A00000] hover:bg-[#800000] text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>[ Apply for this Grant ]</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Apply for Grant</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
                     </button>
                   </div>
                 )}
               </div>
             </section>
+          </>
+        )}
 
-            {/* ========================================================================= */}
-            {/* 4. REQUIREMENTS & SUBMISSION GUIDELINES                                   */}
-            {/* ========================================================================= */}
-            <section className="bg-white rounded-xl border border-neutral-200 p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="pb-4 border-b border-neutral-200 space-y-1">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[#CC181E] block">
-                  Official Verification Protocol
-                </span>
-                <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight font-sans">
-                  Requirements &amp; Submission Guidelines
-                </h2>
-                <p className="text-xs text-neutral-600">
-                  Ensure all requirements comply with document upload thresholds and statutory privacy policies.
-                </p>
-              </div>
+        {/* TAB 2: REQUIREMENTS */}
+        {studentTab === 'requirements' && (
+          <section className="bg-white rounded-xl border border-neutral-200 p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="pb-4 border-b border-neutral-200 space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-maroon-primary block">
+                Official Verification Protocol
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight font-sans">
+                Requirements &amp; Submission Guidelines
+              </h2>
+              <p className="text-xs text-neutral-600">
+                Ensure all requirements comply with document upload thresholds and statutory privacy policies.
+              </p>
+            </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 {/* Left 7 Cols: Checklist & Data Privacy */}
@@ -903,7 +1005,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                   {/* Data Privacy Act Notice */}
                   <div className="bg-amber-50/80 rounded-lg p-3.5 border border-amber-200 text-xs text-neutral-700 space-y-1">
                     <span className="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
-                      <ShieldCheck className="w-4 h-4 text-[#A00000]" />
+                      <ShieldCheck className="w-4 h-4 text-maroon-primary" />
                       <span>RA 10173 Data Privacy Compliance Notice</span>
                     </span>
                     <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
@@ -920,7 +1022,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                 {/* Right 5 Cols: Downloadable Forms */}
                 <div className="lg:col-span-5 bg-neutral-50 rounded-xl p-5 border border-neutral-200 space-y-4">
                   <div className="flex items-center gap-2">
-                    <FileDown className="w-4 h-4 text-[#A00000]" />
+                    <FileDown className="w-4 h-4 text-maroon-primary" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
                       Downloadable Forms &amp; Templates
                     </h3>
@@ -941,7 +1043,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <button
                         type="button"
                         onClick={() => handleDownloadForm('EARIST_SFAO_Form_1_Application')}
-                        className="px-2.5 py-1.5 rounded bg-neutral-100 hover:bg-[#A00000] hover:text-white text-xs font-bold text-neutral-700 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 rounded bg-neutral-100 hover:bg-maroon-primary hover:text-white text-xs font-bold text-neutral-700 transition-colors cursor-pointer"
                         title="Download form"
                       >
                         Download
@@ -959,7 +1061,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <button
                         type="button"
                         onClick={() => handleDownloadForm('Template_Barangay_Indigency_Certificate')}
-                        className="px-2.5 py-1.5 rounded bg-neutral-100 hover:bg-[#A00000] hover:text-white text-xs font-bold text-neutral-700 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 rounded bg-neutral-100 hover:bg-maroon-primary hover:text-white text-xs font-bold text-neutral-700 transition-colors cursor-pointer"
                         title="Download template"
                       >
                         Download
@@ -977,7 +1079,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <button
                         type="button"
                         onClick={() => handleDownloadForm('Template_SAP_Duty_Shift_Schedule')}
-                        className="px-2.5 py-1.5 rounded bg-neutral-100 hover:bg-[#A00000] hover:text-white text-xs font-bold text-neutral-700 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 rounded bg-neutral-100 hover:bg-maroon-primary hover:text-white text-xs font-bold text-neutral-700 transition-colors cursor-pointer"
                         title="Download template"
                       >
                         Download
@@ -987,27 +1089,29 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                 </div>
               </div>
             </section>
+          )}
 
-            {/* SFAO Directory & Helpdesk Footer */}
-            <section className="bg-neutral-100 rounded-xl p-5 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-neutral-600">
-              <div className="flex items-center gap-3">
-                <Building className="w-5 h-5 text-[#A00000] flex-shrink-0" />
-                <div>
-                  <span className="font-bold text-neutral-900 block">
-                    Office of Student Financial Assistance (SFAO) Helpdesk
-                  </span>
-                  <span>Room 204, 2nd Floor Main Admin Building, Nagtahan, Sampaloc, Manila 1008</span>
-                </div>
+          {/* SFAO Directory & Helpdesk Footer */}
+          <section className="bg-white rounded-xl p-5 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-neutral-600 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <Building className="w-5 h-5 text-maroon-primary flex-shrink-0" />
+              <div>
+                <span className="font-bold text-neutral-900 block">
+                  Office of Student Financial Assistance (SFAO) Helpdesk
+                </span>
+                <span>Room 204, 2nd Floor Main Admin Building, Nagtahan, Sampaloc, Manila 1008</span>
               </div>
-              <div className="flex items-center gap-4 text-xs text-neutral-700 flex-shrink-0">
-                <span><strong>Hours:</strong> Mon–Fri 8:00 AM – 5:00 PM</span>
-                <span>•</span>
-                <span><strong>Email:</strong> sfao@earist.edu.ph</span>
-              </div>
-            </section>
-          </main>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-neutral-700 flex-shrink-0">
+              <span><strong>Hours:</strong> Mon–Fri 8:00 AM – 5:00 PM</span>
+              <span>•</span>
+              <span><strong>Email:</strong> sfao@earist.edu.ph</span>
+            </div>
+          </section>
         </div>
       )}
+    </DashboardLayout>
+  )}
 
       {/* ========================================================================= */}
       {/* VIEW B: STAFF & EVALUATOR WORKSPACE (ACCESSED VIA EVALUATOR LOGIN)        */}
@@ -1022,21 +1126,21 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                 <nav className="flex items-center gap-1.5 text-xs text-neutral-500 select-none">
                   <button
                     onClick={() => setViewMode('public')}
-                    className="hover:text-[#A00000] font-medium transition-colors"
+                    className="hover:text-maroon-primary font-medium transition-colors"
                   >
                     Public SFAO Portal
                   </button>
                   <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
-                  <span className="font-semibold text-[#A00000]">Staff &amp; Evaluator Workspace</span>
+                  <span className="font-semibold text-maroon-primary">Staff &amp; Evaluator Workspace</span>
                 </nav>
 
                 {/* Back to Public View Button */}
                 <button
                   type="button"
                   onClick={() => setViewMode('public')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-neutral-700 hover:text-[#A00000] bg-neutral-100 hover:bg-red-50 border border-neutral-200 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-neutral-700 hover:text-maroon-primary bg-neutral-100 hover:bg-maroon-subtle border border-neutral-200 transition-colors cursor-pointer"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5 text-[#A00000]" />
+                  <ArrowLeft className="w-3.5 h-3.5 text-maroon-primary" />
                   <span>← Return to Public Student Portal</span>
                 </button>
               </div>
@@ -1054,10 +1158,12 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={openLoginModal}
-                      className="text-[11px] font-bold text-[#A00000] hover:underline px-2 py-0.5 rounded bg-white border border-neutral-300 shadow-2xs cursor-pointer"
+                      onClick={() => {
+                        window.location.hash = 'login';
+                      }}
+                      className="text-[11px] font-bold text-maroon-primary hover:underline px-2 py-0.5 rounded bg-white border border-neutral-300 shadow-2xs cursor-pointer"
                     >
-                      [ Switch Role / Log Out ]
+                      Sign out / Switch Role
                     </button>
                     {currentUser.college && (
                       <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded border border-emerald-300">
@@ -1075,9 +1181,9 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenApplyModal()}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#A00000] hover:bg-[#800000] text-white shadow-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors cursor-pointer"
                   >
-                    <Plus className="w-4 h-4 text-amber-300" />
+                    <Plus className="w-4 h-4 text-gold-light" />
                     <span>+ New Application</span>
                   </button>
 
@@ -1108,7 +1214,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                   onClick={() => setEvaluatorTab('weekly-report')}
                   className={`px-4 py-2.5 border-b-2 transition-all flex items-center gap-2 ${
                     evaluatorTab === 'weekly-report'
-                      ? 'border-[#A00000] text-[#A00000]'
+                      ? 'border-maroon-primary text-maroon-primary'
                       : 'border-transparent text-neutral-600 hover:text-neutral-900'
                   }`}
                 >
@@ -1124,7 +1230,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                   onClick={() => setEvaluatorTab('analytics')}
                   className={`px-4 py-2.5 border-b-2 transition-all flex items-center gap-2 ${
                     evaluatorTab === 'analytics'
-                      ? 'border-[#A00000] text-[#A00000]'
+                      ? 'border-maroon-primary text-maroon-primary'
                       : 'border-transparent text-neutral-600 hover:text-neutral-900'
                   }`}
                 >
@@ -1137,7 +1243,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                   onClick={() => setEvaluatorTab('grants-directory')}
                   className={`px-4 py-2.5 border-b-2 transition-all flex items-center gap-2 ${
                     evaluatorTab === 'grants-directory'
-                      ? 'border-[#A00000] text-[#A00000]'
+                      ? 'border-maroon-primary text-maroon-primary'
                       : 'border-transparent text-neutral-600 hover:text-neutral-900'
                   }`}
                 >
@@ -1150,7 +1256,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                   onClick={() => setEvaluatorTab('guidelines')}
                   className={`px-4 py-2.5 border-b-2 transition-all flex items-center gap-2 ${
                     evaluatorTab === 'guidelines'
-                      ? 'border-[#A00000] text-[#A00000]'
+                      ? 'border-maroon-primary text-maroon-primary'
                       : 'border-transparent text-neutral-600 hover:text-neutral-900'
                   }`}
                 >
@@ -1169,7 +1275,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                 <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-xs space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-neutral-100">
                     <div className="flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-[#A00000]" />
+                      <Layers className="w-4 h-4 text-maroon-primary" />
                       <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
                         Grant Allocation Quota Capacity (Real-Time Slot Limits)
                       </h3>
@@ -1189,7 +1295,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       </div>
                       <div className="w-full h-2 rounded-full bg-neutral-200 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-[#CC181E] transition-all duration-300"
+                          className="h-full rounded-full bg-maroon-primary transition-all duration-300"
                           style={{
                             width: `${Math.round((quotaStats.tes.filled / quotaStats.tes.max) * 100)}%`,
                           }}
@@ -1297,7 +1403,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                         value={filters.searchQuery}
                         onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
                         placeholder="Search by Student Name, Student ID (e.g., 2023-XXXXX-MN-0), or Application No..."
-                        className="w-full text-xs pl-9 pr-8 py-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-[#800000] focus:border-[#800000] transition-colors"
+                        className="w-full text-xs pl-9 pr-8 py-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary transition-colors"
                       />
                       {filters.searchQuery && (
                         <button
@@ -1314,7 +1420,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <select
                         value={filters.college}
                         onChange={(e) => handleFilterChange('college', e.target.value)}
-                        className="w-full text-xs py-2.5 px-3 bg-neutral-50 border border-neutral-300 rounded-lg text-neutral-800 focus:outline-none focus:ring-1 focus:ring-[#800000] focus:border-[#800000] cursor-pointer"
+                        className="w-full text-xs py-2.5 px-3 bg-neutral-50 border border-neutral-300 rounded-lg text-neutral-800 focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary cursor-pointer"
                       >
                         <option value="All Colleges">All Colleges</option>
                         <option value="CAS">CAS (Arts and Sciences)</option>
@@ -1331,15 +1437,15 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                       <select
                         value={filters.program}
                         onChange={(e) => handleFilterChange('program', e.target.value)}
-                        className="w-full text-xs py-2.5 px-3 bg-neutral-50 border border-neutral-300 rounded-lg text-neutral-800 focus:outline-none focus:ring-1 focus:ring-[#800000] focus:border-[#800000] cursor-pointer"
+                        className="w-full text-xs py-2.5 px-3 bg-neutral-50 border border-neutral-300 rounded-lg text-neutral-800 focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary cursor-pointer"
                       >
                         <option value="All Programs">All Programs</option>
-                        <option value="CHED UniFAST TES">CHED UniFAST TES</option>
-                        <option value="CHED TDP-SUC">CHED TDP-SUC</option>
-                        <option value="DOST-SEI">DOST-SEI</option>
-                        <option value="Academic Honor">Academic Honor</option>
-                        <option value="Student Assistantship">Student Assistantship</option>
-                        <option value="LGU/Barangay">LGU/Barangay</option>
+                        <option value="Tertiary Education Subsidy (TES)">CHED UniFAST TES</option>
+                        <option value="CHED TDP">CHED TDP</option>
+                        <option value="DOST-SEI Grant">DOST-SEI Grant</option>
+                        <option value="Academic Excellence Grant">Academic Excellence Grant</option>
+                        <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
+                        <option value="Barangay/LGU Assistance">Barangay/LGU Assistance</option>
                       </select>
                     </div>
                   </div>
@@ -1357,7 +1463,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                               onClick={() => handleFilterChange('status', statusKey)}
                               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                                 isActive
-                                  ? 'bg-[#800000] text-white shadow-xs'
+                                  ? 'bg-maroon-primary text-white shadow-xs'
                                   : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200/80'
                               }`}
                             >
@@ -1385,7 +1491,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                         <button
                           type="button"
                           onClick={handleResetFilters}
-                          className="text-xs font-semibold text-[#800000] hover:underline flex items-center gap-1"
+                          className="text-xs font-semibold text-maroon-primary hover:text-maroon-hover hover:underline flex items-center gap-1"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
                           <span>Reset Filters</span>
@@ -1477,10 +1583,51 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
 
       <TrackApplicationModal
         isOpen={trackModalOpen}
-        onClose={() => setTrackModalOpen(false)}
+        onClose={() => {
+          setTrackModalOpen(false);
+          setInitialTrackQuery('');
+        }}
         applications={applications}
         onUpdateApplication={handleUpdateApplication}
+        initialSearchQuery={initialTrackQuery}
       />
+
+      {/* Confirmation Modal to replace native window.confirm */}
+      {isResetConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-neutral-200 p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex-shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-neutral-900">
+                  Restore Institutional Demonstration Data?
+                </h3>
+                <p className="text-xs text-neutral-600 leading-relaxed">
+                  This will restore all official EARIST demonstration student records and reset any temporary test applications submitted during this session.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setIsResetConfirmOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeResetToDefault}
+                className="px-4 py-2 text-xs font-bold text-white bg-maroon-primary hover:bg-maroon-hover rounded-lg shadow-xs transition-colors cursor-pointer"
+              >
+                Confirm &amp; Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

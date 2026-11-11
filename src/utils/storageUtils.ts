@@ -1,12 +1,13 @@
 import type { ScholarshipApplication, ApplicationAuditEntry } from '../types';
 import { MOCK_APPLICATIONS } from '../data/mockData';
+import { fetchApplicationsApi } from './api';
 
 const STORAGE_KEY = 'earist_scholarship_applications_v2';
 
 /**
  * Ensures each application has normalized document metadata and a valid audit trail
  */
-function normalizeApplication(app: ScholarshipApplication): ScholarshipApplication {
+export function normalizeApplication(app: ScholarshipApplication): ScholarshipApplication {
   const attachedDocuments = (app.attachedDocuments || []).map((doc) => {
     let mime = doc.mimeType;
     if (!mime) {
@@ -28,11 +29,11 @@ function normalizeApplication(app: ScholarshipApplication): ScholarshipApplicati
       : [
           {
             id: `init-audit-${app.id}`,
-            evaluatorName: app.assignedEvaluator.replace(/\(.*\)/, '').trim(),
+            evaluatorName: app.assignedEvaluator ? app.assignedEvaluator.replace(/\(.*\)/, '').trim() : 'SFAO Evaluator',
             role: `College Evaluator (SFAO-${app.college})`,
             action: app.status === 'Approved' ? 'Approved for Awarding' : app.status === 'Endorsed' ? 'Endorsed to SFAO' : 'Credential Verification Audit',
             remarks: app.evaluatorNotes || 'Initial academic credential audit completed.',
-            timestamp: app.lastUpdated || app.submissionDate,
+            timestamp: app.lastUpdated || app.submissionDate || new Date().toISOString(),
           },
         ];
 
@@ -57,7 +58,13 @@ export function loadApplications(): ScholarshipApplication[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length >= MOCK_APPLICATIONS.length) {
-      return parsed.map(normalizeApplication);
+      const sanitized = parsed.filter(
+        (app: any) =>
+          app.studentId !== '2024-99999-MN-0' &&
+          app.studentNumber !== '2024-99999-MN-0' &&
+          app.studentName !== 'Testing Scholar'
+      );
+      return sanitized.map(normalizeApplication);
     }
     // Update cache if new seed records are available
     const normalized = MOCK_APPLICATIONS.map(normalizeApplication);
@@ -78,6 +85,23 @@ export function saveApplications(apps: ScholarshipApplication[]): void {
   } catch (err) {
     console.error('Failed to persist scholarship records to localStorage:', err);
   }
+}
+
+/**
+ * Syncs applications from live backend API to localStorage and returns normalized records.
+ */
+export async function syncApplicationsWithApi(): Promise<ScholarshipApplication[]> {
+  try {
+    const apiApps = await fetchApplicationsApi();
+    if (apiApps && apiApps.length > 0) {
+      const normalized = apiApps.map(normalizeApplication);
+      saveApplications(normalized);
+      return normalized;
+    }
+  } catch (err) {
+    console.warn('Backend API sync unavailable, continuing with local store:', err);
+  }
+  return loadApplications();
 }
 
 /**
