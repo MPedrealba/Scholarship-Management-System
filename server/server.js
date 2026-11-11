@@ -1672,6 +1672,18 @@ app.patch('/api/users/:id/status', authenticateToken, requireRole('admin'), asyn
   }
 });
 
+// Serve built frontend in production (Express v5 Compatible)
+const distPath = path.resolve(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Express 5-safe SPA fallback middleware AFTER all /api/* and /uploads/* routes
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+    return res.sendFile(path.join(distPath, 'index.html'));
+  }
+  next();
+});
+
 // Start listening
 app.listen(PORT, () => {
   console.log(`====================================================`);

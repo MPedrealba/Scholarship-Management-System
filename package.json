@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "server": "node server/server.js",
+    "start": "node server/server.js",
     "seed:users": "node server/seedUsers.js"
   },
   "dependencies": {
