@@ -4,6 +4,7 @@ import type {
   ReportFilterState,
   ScholarshipStatus,
   ScholarshipProgram,
+  ScholarshipProgramItem,
 } from '../../types';
 import {
   loadApplications,
@@ -11,6 +12,7 @@ import {
   resetApplicationsToDefault,
   syncApplicationsWithApi,
 } from '../../utils/storageUtils';
+import { fetchScholarshipsApi } from '../../utils/api';
 import { exportApplicationsToCSV } from '../../utils/exportUtils';
 import { ScholarshipReportTable } from './ScholarshipReportTable';
 import { ApplicationDetailsModal } from './ApplicationDetailsModal';
@@ -75,10 +77,30 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
 
   // Active catalog filter on Public view
   const [catalogCategory, setCatalogCategory] = useState<'all' | 'national' | 'institutional' | 'lgu'>('all');
+  const [scholarshipPrograms, setScholarshipPrograms] = useState<ScholarshipProgramItem[]>([]);
 
   // Student portal active navigation tab
   const [studentTab, setStudentTab] = useState<'programs' | 'requirements' | 'profile'>('programs');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    fetchScholarshipsApi()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setScholarshipPrograms(data);
+        }
+      })
+      .catch((err) => console.warn('Could not load public scholarships:', err));
+  }, []);
+
+  const filteredCatalogPrograms = useMemo(() => {
+    return scholarshipPrograms.filter((prog) => {
+      if (catalogCategory === 'national') return prog.category === 'National Government';
+      if (catalogCategory === 'institutional') return prog.category === 'Institutional';
+      if (catalogCategory === 'lgu') return prog.category === 'LGU / Private';
+      return true;
+    });
+  }, [scholarshipPrograms, catalogCategory]);
 
   const studentSidebarItems = useMemo<SidebarNavItem[]>(() => [
     {
@@ -698,250 +720,98 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
 
               {/* Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* 1. CHED UniFAST TES */}
-                {(catalogCategory === 'all' || catalogCategory === 'national') && (
-                  <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200 uppercase">
-                          National • RA 10931
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                          Active Intake • Limited Slots
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-neutral-900 leading-snug">
-                        CHED UniFAST Tertiary Education Subsidy (TES)
-                      </h3>
-                      <div className="text-lg font-black text-maroon-primary">
-                        PHP 20,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
-                      </div>
-                      <p className="text-xs text-neutral-600 leading-relaxed">
-                        Direct financial assistance provided by the National Government to qualified students in State Universities.
-                      </p>
-                      <div className="space-y-1 text-xs text-neutral-700 pt-1 border-t border-neutral-100">
-                        <span className="font-bold text-[11px] text-neutral-800 block">Minimum Qualifications:</span>
-                        <ul className="space-y-0.5 text-[11px] list-disc list-inside text-neutral-600">
-                          <li>DSWD Listahanan 2.0 / 4Ps Household beneficiary</li>
-                          <li>Bona fide enrolled undergraduate student</li>
-                          <li>No failing grade or pending disciplinary sanction</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenApplyModal('Tertiary Education Subsidy (TES)')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Apply for Grant</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
-                    </button>
+                {filteredCatalogPrograms.length === 0 ? (
+                  <div className="col-span-full py-16 text-center text-neutral-400">
+                    <GraduationCap className="w-10 h-10 text-neutral-300 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-neutral-700">No active scholarship programs found in this category.</p>
+                    <p className="text-xs text-neutral-500 mt-1">Please check back soon for upcoming institutional intake cycles.</p>
                   </div>
-                )}
+                ) : (
+                  filteredCatalogPrograms.map((prog) => {
+                    const isLocked =
+                      prog.isLocked ||
+                      (prog.allocatedSlots !== undefined &&
+                        prog.totalSlots !== undefined &&
+                        prog.allocatedSlots >= prog.totalSlots);
 
-                {/* 2. CHED TDP-SUC */}
-                {(catalogCategory === 'all' || catalogCategory === 'national') && (
-                  <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 uppercase">
-                          National • CHED-TDP
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Open Filing
-                        </span>
+                    return (
+                      <div
+                        key={prog.id || prog._id || prog.name}
+                        className="bg-white rounded-xl border border-neutral-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+                                prog.category === 'National Government'
+                                  ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                  : prog.category === 'Institutional'
+                                  ? 'bg-amber-50 text-amber-900 border-amber-200'
+                                  : 'bg-blue-50 text-blue-800 border-blue-200'
+                              }`}
+                            >
+                              {prog.category} • {prog.agency}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                isLocked
+                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}
+                            >
+                              {isLocked ? 'Quota Reached' : 'Active Intake'}
+                            </span>
+                          </div>
+                          <h3 className="text-base font-bold text-neutral-900 leading-snug">
+                            {prog.name}
+                          </h3>
+                          <div className="text-lg font-black text-maroon-primary font-mono">
+                            PHP {Number(prog.stipendAmount).toLocaleString()}{' '}
+                            <span className="text-xs font-normal text-neutral-500 font-sans">
+                              / Semester
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-600 leading-relaxed">
+                            {prog.description}
+                          </p>
+                          <div className="space-y-1 text-xs text-neutral-700 pt-1 border-t border-neutral-100">
+                            <span className="font-bold text-[11px] text-neutral-800 block">
+                              Minimum Qualifications:
+                            </span>
+                            <ul className="space-y-0.5 text-[11px] list-disc list-inside text-neutral-600">
+                              <li>General Weighted Average (GWA) &le; {Number(prog.maxGwa).toFixed(2)}</li>
+                              {prog.maxMonthlyIncome !== null && prog.maxMonthlyIncome !== undefined ? (
+                                <li>
+                                  Monthly Household Income &le; PHP {Number(prog.maxMonthlyIncome).toLocaleString()}
+                                </li>
+                              ) : (
+                                <li>No statutory household income cap</li>
+                              )}
+                              <li>Enrolled bona fide undergraduate student</li>
+                            </ul>
+                          </div>
+                          {prog.totalSlots && (
+                            <div className="pt-1 text-[11px] text-neutral-500 flex items-center justify-between">
+                              <span>Intake Capacity:</span>
+                              <span className="font-bold text-neutral-700 font-mono">
+                                {prog.remainingSlots !== undefined
+                                  ? `${prog.remainingSlots} of ${prog.totalSlots} slots remaining`
+                                  : `${prog.totalSlots} slots total`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenApplyModal(prog.name)}
+                          className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <span>Apply for Grant</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
+                        </button>
                       </div>
-                      <h3 className="text-base font-bold text-neutral-900 leading-snug">
-                        CHED Tulong Dunong Program (TDP-SUC)
-                      </h3>
-                      <div className="text-lg font-black text-maroon-primary">
-                        PHP 15,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
-                      </div>
-                      <p className="text-xs text-neutral-600 leading-relaxed">
-                        Grants-in-aid to support qualified Filipino youth enrolled in priority curricula of public higher education institutions.
-                      </p>
-                      <div className="space-y-1 text-xs text-neutral-700 pt-1 border-t border-neutral-100">
-                        <span className="font-bold text-[11px] text-neutral-800 block">Minimum Qualifications:</span>
-                        <ul className="space-y-0.5 text-[11px] list-disc list-inside text-neutral-600">
-                          <li>Combined family annual income not exceeding ₱300,000</li>
-                          <li>General Weighted Average (GWA) ≥ 2.50</li>
-                          <li>Officially validated Certificate of Indigency</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenApplyModal('CHED TDP')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Apply for Grant</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
-                    </button>
-                  </div>
-                )}
-
-                {/* 3. DOST-SEI Grant */}
-                {(catalogCategory === 'all' || catalogCategory === 'national') && (
-                  <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
-                          National • DOST-SEI
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-                          Merit Roster Active
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-neutral-900 leading-snug">
-                        DOST-SEI Science &amp; Technology Grant
-                      </h3>
-                      <div className="text-lg font-black text-maroon-primary">
-                        PHP 25,000 <span className="text-xs font-normal text-neutral-500">/ Sem + Book Allowance</span>
-                      </div>
-                      <p className="text-xs text-neutral-600 leading-relaxed">
-                        Scholarship for students in prioritized engineering, technological, and applied science degree curricula.
-                      </p>
-                      <div className="space-y-1 text-xs text-neutral-700 pt-1 border-t border-neutral-100">
-                        <span className="font-bold text-[11px] text-neutral-800 block">Minimum Qualifications:</span>
-                        <ul className="space-y-0.5 text-[11px] list-disc list-inside text-neutral-600">
-                          <li>Passed the official DOST-SEI scholarship exam</li>
-                          <li>Enrolled in Engineering, Computer Science, or CIT</li>
-                          <li>Maintain GWA standard of 2.0 or better</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenApplyModal('DOST-SEI Grant')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Apply for Grant</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
-                    </button>
-                  </div>
-                )}
-
-                {/* 4. Academic Honors */}
-                {(catalogCategory === 'all' || catalogCategory === 'institutional') && (
-                  <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 uppercase">
-                          Institutional • SFAO
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                          Dean&apos;s Honors
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-neutral-900 leading-snug">
-                        Academic Honors (President&apos;s &amp; Dean&apos;s List)
-                      </h3>
-                      <div className="text-lg font-black text-maroon-primary">
-                        PHP 18,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
-                      </div>
-                      <p className="text-xs text-neutral-600 leading-relaxed">
-                        Merit cash incentives awarded to top academic performers across all EARIST undergraduate colleges.
-                      </p>
-                      <div className="space-y-1 text-xs text-neutral-700 pt-1 border-t border-neutral-100">
-                        <span className="font-bold text-[11px] text-neutral-800 block">Minimum Qualifications:</span>
-                        <ul className="space-y-0.5 text-[11px] list-disc list-inside text-neutral-600">
-                          <li>President&apos;s Lister (1.00–1.25) or Dean&apos;s Lister (1.26–1.50)</li>
-                          <li>No grade lower than 2.0 in any academic subject</li>
-                          <li>Official endorsement from College Dean</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenApplyModal('Academic Excellence Grant')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Apply for Grant</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
-                    </button>
-                  </div>
-                )}
-
-                {/* 5. Student Assistantship */}
-                {(catalogCategory === 'all' || catalogCategory === 'institutional') && (
-                  <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
-                          Institutional • Work-Study
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-300">
-                          15h Duty / Week
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-neutral-900 leading-snug">
-                        Student Assistantship Program (SAP)
-                      </h3>
-                      <div className="text-lg font-black text-maroon-primary">
-                        PHP 8,000 <span className="text-xs font-normal text-neutral-500">/ Semester Allowance</span>
-                      </div>
-                      <p className="text-xs text-neutral-600 leading-relaxed">
-                        Hands-on administrative and laboratory work-study assignments inside campus colleges and offices.
-                      </p>
-                      <div className="space-y-1 text-xs text-neutral-700 pt-1 border-t border-neutral-100">
-                        <span className="font-bold text-[11px] text-neutral-800 block">Minimum Qualifications:</span>
-                        <ul className="space-y-0.5 text-[11px] list-disc list-inside text-neutral-600">
-                          <li>At least 2nd Year standing with passing grades</li>
-                          <li>Available for 15 hours weekly office/lab duty schedule</li>
-                          <li>Passed campus medical &amp; physical clearance</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenApplyModal('Student Assistantship Program (SAP)')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Apply for Grant</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
-                    </button>
-                  </div>
-                )}
-
-                {/* 6. Manila City / LGU Assistance */}
-                {(catalogCategory === 'all' || catalogCategory === 'lgu') && (
-                  <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 uppercase">
-                          LGU Partnership
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                          Manila Residents
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-neutral-900 leading-snug">
-                        Manila City &amp; Congressional Educational Grants
-                      </h3>
-                      <div className="text-lg font-black text-maroon-primary">
-                        PHP 10,000 <span className="text-xs font-normal text-neutral-500">/ Semester</span>
-                      </div>
-                      <p className="text-xs text-neutral-600 leading-relaxed">
-                        Subsidies for bona fide residents of Manila districts and local government partner jurisdictions.
-                      </p>
-                      <div className="space-y-1 text-xs text-neutral-700 pt-1 border-t border-neutral-100">
-                        <span className="font-bold text-[11px] text-neutral-800 block">Minimum Qualifications:</span>
-                        <ul className="space-y-0.5 text-[11px] list-disc list-inside text-neutral-600">
-                          <li>Registered voter or dependent of Manila City voter</li>
-                          <li>Official Barangay Residency Certification</li>
-                          <li>Passing grade in all enrolled units</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenApplyModal('Barangay/LGU Assistance')}
-                      className="w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider bg-maroon-primary hover:bg-maroon-hover text-white shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Apply for Grant</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gold-light" />
-                    </button>
-                  </div>
+                    );
+                  })
                 )}
               </div>
             </section>
@@ -1440,12 +1310,22 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                         className="w-full text-xs py-2.5 px-3 bg-neutral-50 border border-neutral-300 rounded-lg text-neutral-800 focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary cursor-pointer"
                       >
                         <option value="All Programs">All Programs</option>
-                        <option value="Tertiary Education Subsidy (TES)">CHED UniFAST TES</option>
-                        <option value="CHED TDP">CHED TDP</option>
-                        <option value="DOST-SEI Grant">DOST-SEI Grant</option>
-                        <option value="Academic Excellence Grant">Academic Excellence Grant</option>
-                        <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
-                        <option value="Barangay/LGU Assistance">Barangay/LGU Assistance</option>
+                        {scholarshipPrograms.length > 0 ? (
+                          scholarshipPrograms.map((prog) => (
+                            <option key={prog.id || prog._id || prog.name} value={prog.name}>
+                              {prog.name}
+                            </option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="Tertiary Education Subsidy (TES)">CHED UniFAST TES</option>
+                            <option value="CHED TDP">CHED TDP</option>
+                            <option value="DOST-SEI Grant">DOST-SEI Grant</option>
+                            <option value="Academic Excellence Grant">Academic Excellence Grant</option>
+                            <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
+                            <option value="Barangay/LGU Assistance">Barangay/LGU Assistance</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>

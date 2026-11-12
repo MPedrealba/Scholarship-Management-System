@@ -559,24 +559,33 @@
     },
     {
       "email": "admin@earist.edu.ph",
-      "password": "password123",
+      "password": "$2b$10$eB6l5ur6RSEI/A5RhhifbOU8OYr7eU190tZPE1vfFCJKo.3uv/B2i",
       "role": "admin",
       "name": "Dr. Rogelio T. Mamaradlo",
-      "college": null
+      "college": null,
+      "employeeId": "ADM-2024-001",
+      "studentNumber": null,
+      "isActive": true
     },
     {
       "email": "evaluator@earist.edu.ph",
-      "password": "password123",
+      "password": "$2b$10$eB6l5ur6RSEI/A5RhhifbOU8OYr7eU190tZPE1vfFCJKo.3uv/B2i",
       "role": "evaluator",
       "name": "Prof. Noel Carpio",
-      "college": "CIT"
+      "college": "CIT",
+      "employeeId": "EVL-CIT-004",
+      "studentNumber": null,
+      "isActive": true
     },
     {
       "email": "student@earist.edu.ph",
-      "password": "password123",
+      "password": "$2b$10$eB6l5ur6RSEI/A5RhhifbOU8OYr7eU190tZPE1vfFCJKo.3uv/B2i",
       "role": "student",
       "name": "Juan Dela Cruz",
-      "college": "CIT"
+      "college": "CIT",
+      "employeeId": null,
+      "studentNumber": "2023-01849-MN-0",
+      "isActive": true
     }
   ],
   "terms": [

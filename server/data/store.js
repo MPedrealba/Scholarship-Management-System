@@ -3,13 +3,14 @@ import path from 'path';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
-import { DEFAULT_APPLICATIONS, DEFAULT_QUOTAS, DEFAULT_USERS } from './seedData.js';
+import { DEFAULT_APPLICATIONS, DEFAULT_QUOTAS, DEFAULT_USERS, DEFAULT_SCHOLARSHIP_PROGRAMS } from './seedData.js';
 import { Application } from '../models/Application.js';
 import { Quota } from '../models/Quota.js';
 import { User } from '../models/User.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Notification } from '../models/Notification.js';
 import { AcademicTerm } from '../models/AcademicTerm.js';
+import { ScholarshipProgram } from '../models/ScholarshipProgram.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,6 +89,7 @@ let memoryStore = {
     academicTerm: app.academicTerm || '1st Sem A.Y. 2026-2027',
   })),
   quotas: [...DEFAULT_QUOTAS],
+  scholarships: [...DEFAULT_SCHOLARSHIP_PROGRAMS],
   users: [...DEFAULT_USERS],
   terms: [...INITIAL_TERMS],
   notifications: [...INITIAL_NOTIFICATIONS],
@@ -116,6 +118,10 @@ try {
         academicTerm: app.academicTerm || '1st Sem A.Y. 2026-2027',
       }));
       memoryStore.quotas = parsed.quotas || [...DEFAULT_QUOTAS];
+      memoryStore.scholarships =
+        parsed.scholarships && parsed.scholarships.length > 0
+          ? parsed.scholarships
+          : [...DEFAULT_SCHOLARSHIP_PROGRAMS];
       memoryStore.users = parsed.users || [...DEFAULT_USERS];
       memoryStore.auditLogs = parsed.auditLogs || [];
       memoryStore.terms = parsed.terms && parsed.terms.length > 0 ? parsed.terms : [...INITIAL_TERMS];
@@ -127,6 +133,36 @@ try {
   } else {
     fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
     fs.writeFileSync(STORE_PATH, JSON.stringify(memoryStore, null, 2));
+  }
+
+  // Ensure default accounts in memoryStore have valid bcrypt hashes
+  for (const defUser of DEFAULT_USERS) {
+    const existingIdx = memoryStore.users.findIndex(
+      (u) => u.email && u.email.toLowerCase() === defUser.email.toLowerCase()
+    );
+    if (existingIdx === -1) {
+      memoryStore.users.push({ ...defUser });
+    } else {
+      const u = memoryStore.users[existingIdx];
+      const isBcrypt = u.password && /^\$2[aby]\$\d{2}\$/.test(u.password);
+      let isValidPassword123 = false;
+      if (isBcrypt) {
+        try {
+          isValidPassword123 = bcrypt.compareSync('password123', u.password);
+        } catch {
+          isValidPassword123 = false;
+        }
+      }
+      if (!isValidPassword123) {
+        memoryStore.users[existingIdx] = {
+          ...u,
+          password: defUser.password,
+          role: u.role || defUser.role,
+          name: u.name || defUser.name,
+          isActive: true,
+        };
+      }
+    }
   }
 } catch (e) {
   console.warn('Notice loading local file store:', e.message);
@@ -167,6 +203,36 @@ export const DataStore = {
         console.log(' Synced local users to MongoDB Atlas.');
       }
 
+      // Ensure the 3 default accounts exist and have valid bcrypt hashes in MongoDB Atlas
+      for (const defUser of DEFAULT_USERS) {
+        const existing = await User.findOne({ email: defUser.email.toLowerCase() });
+        if (!existing) {
+          await User.create(defUser);
+          console.log(` Created missing default user in MongoDB Atlas: ${defUser.email}`);
+        } else {
+          const isBcrypt = existing.password && /^\$2[aby]\$\d{2}\$/.test(existing.password);
+          let isValidPassword123 = false;
+          if (isBcrypt) {
+            try {
+              isValidPassword123 = bcrypt.compareSync('password123', existing.password);
+            } catch {
+              isValidPassword123 = false;
+            }
+          }
+          if (!isValidPassword123) {
+            existing.password = defUser.password;
+            if (defUser.role) existing.role = defUser.role;
+            if (defUser.name) existing.name = defUser.name;
+            if (defUser.college !== undefined) existing.college = defUser.college;
+            if (defUser.employeeId !== undefined) existing.employeeId = defUser.employeeId;
+            if (defUser.studentNumber !== undefined) existing.studentNumber = defUser.studentNumber;
+            existing.isActive = true;
+            await existing.save();
+            console.log(` Restored corrupted default user in MongoDB Atlas: ${defUser.email}`);
+          }
+        }
+      }
+
       const termCount = await AcademicTerm.countDocuments();
       if (termCount === 0) {
         for (const t of memoryStore.terms) {
@@ -199,6 +265,15 @@ export const DataStore = {
           });
         }
         console.log(' Synced notifications to MongoDB Atlas.');
+      }
+
+      const progCount = await ScholarshipProgram.countDocuments();
+      if (progCount === 0) {
+        for (const p of memoryStore.scholarships) {
+          const { id: _clientId, _id: _mongoId, ...cleanProg } = p;
+          await ScholarshipProgram.create(cleanProg);
+        }
+        console.log(' Synced local scholarship programs to MongoDB Atlas.');
       }
     } catch (e) {
       console.warn('MongoDB Atlas sync check:', e.message);
@@ -414,6 +489,313 @@ export const DataStore = {
       }
     }
     return memoryStore.quotas;
+  },
+
+  // =========================================================================
+  // SCHOLARSHIP PROGRAMS (CRUD + LIVE QUOTA SYNCHRONIZATION)
+  // =========================================================================
+  async getScholarships(includeInactive = false) {
+    let progs = [];
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const query = includeInactive ? {} : { isActive: true };
+        const docs = await ScholarshipProgram.find(query).sort({ createdAt: -1 });
+        if (docs && docs.length > 0) {
+          progs = docs.map((d) => d.toObject());
+        }
+      } catch (e) {
+        console.warn('Atlas scholarship read fallback:', e.message);
+      }
+    }
+
+    if (!progs || progs.length === 0) {
+      progs = (memoryStore.scholarships || []).filter(
+        (s) => includeInactive || s.isActive !== false
+      );
+    }
+
+    // Attach live Quota data & slot availability
+    const quotas = await this.getQuotas();
+    const apps = memoryStore.applications || [];
+
+    return progs.map((prog) => {
+      const q = quotas.find(
+        (item) => item.grantType && item.grantType.toLowerCase() === (prog.name || '').toLowerCase()
+      );
+      const liveAllocated = q?.allocatedSlots ?? apps.filter(
+        (a) =>
+          (a.scholarshipGrant === prog.name || a.program === prog.name) &&
+          ['Approved', 'Endorsed', 'Pending Review'].includes(a.status)
+      ).length;
+      const totalSlots = prog.totalSlots || q?.totalSlots || 50;
+      const remainingSlots = Math.max(0, totalSlots - liveAllocated);
+      const isLocked = q?.isLocked || false;
+
+      return {
+        ...prog,
+        id: prog._id ? prog._id.toString() : prog.id,
+        _id: prog._id ? prog._id.toString() : prog.id,
+        totalSlots,
+        allocatedSlots: liveAllocated,
+        remainingSlots,
+        isLocked,
+      };
+    });
+  },
+
+  async getScholarshipById(id) {
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const doc = await ScholarshipProgram.findOne({
+          $or: [
+            { _id: mongoose.Types.ObjectId.isValid(id) ? id : null },
+            { id },
+          ],
+        });
+        if (doc) return doc.toObject();
+      } catch (e) {
+        console.warn('Atlas getScholarshipById fallback:', e.message);
+      }
+    }
+    return (memoryStore.scholarships || []).find((s) => s.id === id || s._id === id) || null;
+  },
+
+  async getScholarshipByName(name) {
+    if (!name) return null;
+    const cleanName = String(name).trim().toLowerCase();
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const doc = await ScholarshipProgram.findOne({
+          name: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+        });
+        if (doc) return doc.toObject();
+      } catch (e) {
+        console.warn('Atlas getScholarshipByName fallback:', e.message);
+      }
+    }
+    return (
+      (memoryStore.scholarships || []).find(
+        (s) => s.name && s.name.toLowerCase() === cleanName
+      ) || null
+    );
+  },
+
+  async createScholarship(data) {
+    const existing = await this.getScholarshipByName(data.name);
+    if (existing) {
+      const err = new Error(`Scholarship program "${data.name}" already exists.`);
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const newId = `prog-${Date.now()}`;
+    const newProg = {
+      id: newId,
+      name: data.name.trim(),
+      category: data.category,
+      agency: data.agency.trim(),
+      stipendAmount: Number(data.stipendAmount) || 0,
+      description: data.description.trim(),
+      maxGwa: data.maxGwa !== undefined && data.maxGwa !== null && data.maxGwa !== '' ? Number(data.maxGwa) : 3.0,
+      maxMonthlyIncome: data.maxMonthlyIncome !== undefined && data.maxMonthlyIncome !== null && data.maxMonthlyIncome !== '' ? Number(data.maxMonthlyIncome) : null,
+      requiredDocuments: Array.isArray(data.requiredDocuments) && data.requiredDocuments.length > 0
+        ? data.requiredDocuments
+        : ['COR', 'Grade Slip', 'Certificate of Indigency', 'Valid Student ID'],
+      totalSlots: Number(data.totalSlots) || 50,
+      isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!memoryStore.scholarships) memoryStore.scholarships = [];
+    memoryStore.scholarships.unshift(newProg);
+
+    // Sync corresponding Quota
+    let matchingQuota = memoryStore.quotas.find(
+      (q) => q.grantType.toLowerCase() === newProg.name.toLowerCase()
+    );
+    if (!matchingQuota) {
+      matchingQuota = {
+        id: `quota-${Date.now()}`,
+        grantType: newProg.name,
+        totalSlots: newProg.totalSlots,
+        allocatedSlots: 0,
+        isLocked: false,
+      };
+      memoryStore.quotas.push(matchingQuota);
+    } else {
+      matchingQuota.totalSlots = newProg.totalSlots;
+    }
+
+    persistFileStore();
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const { id: _clientId, _id: _mongoId, ...cleanData } = newProg;
+        const created = await ScholarshipProgram.create(cleanData);
+        newProg._id = created._id.toString();
+        newProg.id = created._id.toString();
+
+        await Quota.findOneAndUpdate(
+          { grantType: newProg.name },
+          {
+            $set: { totalSlots: newProg.totalSlots },
+            $setOnInsert: { allocatedSlots: 0, isLocked: false },
+          },
+          { upsert: true, new: true }
+        );
+      } catch (e) {
+        console.warn('Atlas createScholarship warning:', e.message);
+      }
+    }
+
+    return newProg;
+  },
+
+  async updateScholarship(id, updateData) {
+    let existing = (memoryStore.scholarships || []).find((s) => s.id === id || s._id === id);
+    let oldName = existing?.name;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const doc = await ScholarshipProgram.findOne({
+          $or: [
+            { _id: mongoose.Types.ObjectId.isValid(id) ? id : null },
+            { id },
+          ],
+        });
+        if (doc) {
+          oldName = oldName || doc.name;
+          Object.assign(doc, {
+            ...(updateData.name && { name: updateData.name.trim() }),
+            ...(updateData.category && { category: updateData.category }),
+            ...(updateData.agency && { agency: updateData.agency.trim() }),
+            ...(updateData.stipendAmount !== undefined && { stipendAmount: Number(updateData.stipendAmount) }),
+            ...(updateData.description && { description: updateData.description.trim() }),
+            ...(updateData.maxGwa !== undefined && { maxGwa: Number(updateData.maxGwa) }),
+            ...(updateData.maxMonthlyIncome !== undefined && { maxMonthlyIncome: updateData.maxMonthlyIncome === null || updateData.maxMonthlyIncome === '' ? null : Number(updateData.maxMonthlyIncome) }),
+            ...(updateData.requiredDocuments && { requiredDocuments: updateData.requiredDocuments }),
+            ...(updateData.totalSlots !== undefined && { totalSlots: Number(updateData.totalSlots) }),
+            ...(updateData.isActive !== undefined && { isActive: Boolean(updateData.isActive) }),
+          });
+          await doc.save();
+          existing = doc.toObject();
+        }
+      } catch (e) {
+        console.warn('Atlas updateScholarship warning:', e.message);
+      }
+    }
+
+    // Update in memoryStore
+    const idx = (memoryStore.scholarships || []).findIndex((s) => s.id === id || s._id === id);
+    if (idx !== -1) {
+      memoryStore.scholarships[idx] = {
+        ...memoryStore.scholarships[idx],
+        ...updateData,
+        ...(updateData.name && { name: updateData.name.trim() }),
+        ...(updateData.stipendAmount !== undefined && { stipendAmount: Number(updateData.stipendAmount) }),
+        ...(updateData.totalSlots !== undefined && { totalSlots: Number(updateData.totalSlots) }),
+        updatedAt: new Date().toISOString(),
+      };
+      existing = memoryStore.scholarships[idx];
+    }
+
+    // Sync corresponding Quota (rename or update totalSlots)
+    const newName = updateData.name ? updateData.name.trim() : oldName;
+    const newTotal = updateData.totalSlots !== undefined ? Number(updateData.totalSlots) : undefined;
+
+    const quota = memoryStore.quotas.find(
+      (q) => q.grantType.toLowerCase() === (oldName || '').toLowerCase()
+    );
+    if (quota) {
+      if (newName) quota.grantType = newName;
+      if (newTotal !== undefined) quota.totalSlots = newTotal;
+    }
+
+    persistFileStore();
+
+    if (mongoose.connection.readyState === 1 && (newName !== oldName || newTotal !== undefined)) {
+      try {
+        await Quota.findOneAndUpdate(
+          { grantType: oldName },
+          {
+            $set: {
+              ...(newName && { grantType: newName }),
+              ...(newTotal !== undefined && { totalSlots: newTotal }),
+            },
+          }
+        );
+      } catch (e) {
+        console.warn('Atlas quota sync on program update warning:', e.message);
+      }
+    }
+
+    return existing;
+  },
+
+  async deleteScholarship(id) {
+    let prog = (memoryStore.scholarships || []).find((s) => s.id === id || s._id === id);
+    let progName = prog?.name;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const doc = await ScholarshipProgram.findOne({
+          $or: [
+            { _id: mongoose.Types.ObjectId.isValid(id) ? id : null },
+            { id },
+          ],
+        });
+        if (doc) {
+          progName = progName || doc.name;
+          await ScholarshipProgram.deleteOne({ _id: doc._id });
+        }
+      } catch (e) {
+        console.warn('Atlas deleteScholarship warning:', e.message);
+      }
+    }
+
+    memoryStore.scholarships = (memoryStore.scholarships || []).filter(
+      (s) => s.id !== id && s._id !== id
+    );
+
+    if (progName) {
+      memoryStore.quotas = memoryStore.quotas.filter(
+        (q) => q.grantType.toLowerCase() !== progName.toLowerCase()
+      );
+      if (mongoose.connection.readyState === 1) {
+        try {
+          await Quota.deleteOne({ grantType: progName });
+        } catch (e) {
+          console.warn('Atlas deleteQuota warning:', e.message);
+        }
+      }
+    }
+
+    persistFileStore();
+    return true;
+  },
+
+  async countApplicationsForGrant(grantName) {
+    if (!grantName) return 0;
+    const cleanName = String(grantName).trim().toLowerCase();
+    if (mongoose.connection.readyState === 1) {
+      try {
+        return await Application.countDocuments({
+          $or: [
+            { scholarshipGrant: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+            { program: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+          ],
+        });
+      } catch (e) {
+        console.warn('Atlas countApplicationsForGrant fallback:', e.message);
+      }
+    }
+
+    return (memoryStore.applications || []).filter(
+      (a) =>
+        (a.scholarshipGrant && a.scholarshipGrant.toLowerCase() === cleanName) ||
+        (a.program && a.program.toLowerCase() === cleanName)
+    ).length;
   },
 
   // Audit Logs

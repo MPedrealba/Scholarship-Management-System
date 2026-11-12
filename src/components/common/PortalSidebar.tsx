@@ -85,6 +85,11 @@ export const PortalSidebar: React.FC<PortalSidebarProps> = ({
           icon: ClipboardList,
         },
         {
+          id: 'scholarships',
+          label: 'Scholarship Management',
+          icon: GraduationCap,
+        },
+        {
           id: 'quotas',
           label: 'Grant Quotas',
           icon: Sliders,

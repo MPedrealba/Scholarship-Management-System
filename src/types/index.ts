@@ -1,12 +1,26 @@
 export type ScholarshipStatus = 'Pending Review' | 'Approved' | 'Endorsed' | 'Flagged';
 
-export type ScholarshipProgram =
-  | 'CHED TDP'
-  | 'Tertiary Education Subsidy (TES)'
-  | 'Academic Excellence Grant'
-  | 'Barangay/LGU Assistance'
-  | 'DOST-SEI Grant'
-  | 'Student Assistantship Program (SAP)';
+export type ScholarshipProgram = string;
+
+export interface ScholarshipProgramItem {
+  id?: string;
+  _id?: string;
+  name: string;
+  category: 'National Government' | 'Institutional' | 'LGU / Private';
+  agency: string;
+  stipendAmount: number;
+  description: string;
+  maxGwa: number;
+  maxMonthlyIncome: number | null;
+  requiredDocuments: string[];
+  totalSlots: number;
+  allocatedSlots?: number;
+  remainingSlots?: number;
+  isLocked?: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export type CollegeCode = 'CAS' | 'CBA' | 'CED' | 'CIT' | 'CEN' | 'CAFA' | 'CHM';
 

@@ -4,6 +4,7 @@ import type {
   ScholarshipApplication,
   CollegeCode,
   ScholarshipProgram,
+  ScholarshipProgramItem,
   DocumentChecklist,
 } from '../../types';
 import {
@@ -14,7 +15,7 @@ import {
 } from '../../data/mockData';
 import { formatPHP } from '../../utils/exportUtils';
 import { EaristLogo } from '../common/EaristLogo';
-import { fetchQuotasApi, submitApplicationApi, type QuotaRecord } from '../../utils/api';
+import { fetchQuotasApi, fetchScholarshipsApi, submitApplicationApi, type QuotaRecord } from '../../utils/api';
 import {
   X,
   Upload,
@@ -127,8 +128,9 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
   const [globalBannerError, setGlobalBannerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Quota Management State
+  // Quota & Dynamic Scholarship Programs State
   const [quotas, setQuotas] = useState<QuotaRecord[]>([]);
+  const [programs, setPrograms] = useState<ScholarshipProgramItem[]>([]);
 
   // Success Confirmation State
   const [submittedApp, setSubmittedApp] = useState<ScholarshipApplication | null>(null);
@@ -141,9 +143,22 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
     validId: useRef<HTMLInputElement>(null),
   };
 
-  // Fetch real-time quota slots on modal open
+  // Fetch real-time quota slots and dynamic scholarships on modal open
   useEffect(() => {
     if (isOpen) {
+      fetchScholarshipsApi()
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setPrograms(data);
+            if (!formData.program && data[0]?.name) {
+              setFormData((prev) => ({ ...prev, program: data[0].name }));
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Unable to load scholarships in modal:', err);
+        });
+
       fetchQuotasApi()
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) {
@@ -257,28 +272,53 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
     return stemKeywords.some((k) => cLower.includes(k));
   };
 
+  // Dynamic Program Document Lookup
+  const selectedProgramDoc = programs.find(
+    (p) => p.name.toLowerCase() === (formData.program || '').toLowerCase()
+  );
+
   const getEligibilityCheck = (): { eligible: boolean; advisory?: string } => {
     if (!formData.program) return { eligible: true };
 
-    if (formData.program === 'Academic Excellence Grant') {
-      if (isGwaValid && gwaNum > 1.75) {
+    if (selectedProgramDoc) {
+      if (isGwaValid && selectedProgramDoc.maxGwa && gwaNum > selectedProgramDoc.maxGwa) {
         return {
           eligible: false,
-          advisory: `Academic Excellence Grant requires a General Weighted Average (GWA) of 1.75 or better (Dean's/President's List honors). Your entered GWA (${gwaNum.toFixed(2)}) does not meet the qualification standard for this grant.`,
+          advisory: `${selectedProgramDoc.name} requires a General Weighted Average (GWA) of ${Number(selectedProgramDoc.maxGwa).toFixed(2)} or better. Your declared GWA (${gwaNum.toFixed(2)}) does not meet the qualification standard for this grant.`,
         };
+      }
+
+      if (
+        selectedProgramDoc.maxMonthlyIncome !== null &&
+        selectedProgramDoc.maxMonthlyIncome !== undefined &&
+        monthlyIncomeNum > selectedProgramDoc.maxMonthlyIncome
+      ) {
+        return {
+          eligible: false,
+          advisory: `${selectedProgramDoc.name} statutory financial mandate requires monthly household income not exceeding PHP ${Number(selectedProgramDoc.maxMonthlyIncome).toLocaleString()}. Your declared monthly income (${formatPHP(monthlyIncomeNum)}) exceeds this statutory threshold.`,
+        };
+      }
+    } else {
+      if (formData.program === 'Academic Excellence Grant') {
+        if (isGwaValid && gwaNum > 1.75) {
+          return {
+            eligible: false,
+            advisory: `Academic Excellence Grant requires a General Weighted Average (GWA) of 1.75 or better (Dean's/President's List honors). Your entered GWA (${gwaNum.toFixed(2)}) does not meet the qualification standard for this grant.`,
+          };
+        }
+      }
+
+      if (formData.program === 'CHED TDP' || formData.program === 'Tertiary Education Subsidy (TES)') {
+        if (monthlyIncomeNum > 33333) {
+          return {
+            eligible: false,
+            advisory: `${formData.program} statutory low-income mandate requires monthly household income not exceeding PHP 33,333. Your declared monthly income (${formatPHP(monthlyIncomeNum)}) exceeds this statutory threshold.`,
+          };
+        }
       }
     }
 
-    if (formData.program === 'CHED TDP' || formData.program === 'Tertiary Education Subsidy (TES)') {
-      if (monthlyIncomeNum > 33333) {
-        return {
-          eligible: false,
-          advisory: `${formData.program} statutory low-income mandate requires monthly household income not exceeding PHP 33,333. Your declared monthly income (${formatPHP(monthlyIncomeNum)}) exceeds this statutory threshold.`,
-        };
-      }
-    }
-
-    if (formData.program === 'DOST-SEI Grant') {
+    if (formData.program.toLowerCase().includes('dost')) {
       if (isGwaValid && gwaNum > 2.00) {
         return {
           eligible: false,
@@ -322,6 +362,13 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
 
   // Check if a scholarship grant quota is locked or full
   const isGrantClosed = (grantName: string): boolean => {
+    const prog = programs.find((p) => p.name.toLowerCase() === grantName.toLowerCase());
+    if (prog) {
+      if (prog.isLocked) return true;
+      if (prog.allocatedSlots !== undefined && prog.totalSlots !== undefined && prog.allocatedSlots >= prog.totalSlots) {
+        return true;
+      }
+    }
     const q = quotas.find(
       (item) => item.grantType.toLowerCase() === grantName.toLowerCase()
     );
@@ -367,6 +414,10 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
       payload.append('yearAndSection', formData.yearAndSection.trim());
       payload.append('scholarshipGrant', formData.program);
       payload.append('grantType', formData.program);
+      payload.append(
+        'stipendAmount',
+        String(selectedProgramDoc?.stipendAmount ?? (PROGRAM_STIPENDS[formData.program] || 20000))
+      );
       payload.append('academicTerm', '1st Sem A.Y. 2026-2027');
       payload.append('gwa', String(gwaNum));
       payload.append('monthlyIncome', formData.monthlyHouseholdIncome.trim());
@@ -407,7 +458,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
       console.warn('API submission failed, falling back to local storage handler:', errorMsg);
       // Fallback local creation
       const generatedId = `APP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-      const stipend = PROGRAM_STIPENDS[formData.program] || 15000;
+      const stipend = selectedProgramDoc?.stipendAmount ?? (PROGRAM_STIPENDS[formData.program] || 15000);
       const evaluator = COLLEGE_EVALUATORS[formData.college] || 'SFAO General Evaluator';
       const submissionTime = new Date().toISOString();
 
@@ -952,24 +1003,37 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                       onChange={(e) => setFormData({ ...formData, program: e.target.value as ScholarshipProgram })}
                       className="w-full text-xs font-medium px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary bg-white cursor-pointer"
                     >
-                      <option value="CHED TDP" disabled={isGrantClosed('CHED TDP')}>
-                        CHED Tulong Dunong Program (TDP-SUC) {isGrantClosed('CHED TDP') ? '(Quota Reached - Closed)' : ''}
-                      </option>
-                      <option value="Tertiary Education Subsidy (TES)" disabled={isGrantClosed('Tertiary Education Subsidy (TES)')}>
-                        Tertiary Education Subsidy (TES - UniFAST) {isGrantClosed('Tertiary Education Subsidy (TES)') ? '(Quota Reached - Closed)' : ''}
-                      </option>
-                      <option value="Academic Excellence Grant" disabled={isGrantClosed('Academic Excellence Grant')}>
-                        Academic Excellence Grant (President's/Dean's List) {isGrantClosed('Academic Excellence Grant') ? '(Quota Reached - Closed)' : ''}
-                      </option>
-                      <option value="DOST-SEI Grant" disabled={isGrantClosed('DOST-SEI Grant')}>
-                        DOST-SEI Science &amp; Technology Grant {isGrantClosed('DOST-SEI Grant') ? '(Quota Reached - Closed)' : ''}
-                      </option>
-                      <option value="Student Assistantship Program (SAP)" disabled={isGrantClosed('Student Assistantship Program (SAP)')}>
-                        Student Assistantship Program (SAP) {isGrantClosed('Student Assistantship Program (SAP)') ? '(Quota Reached - Closed)' : ''}
-                      </option>
-                      <option value="Barangay/LGU Assistance" disabled={isGrantClosed('Barangay/LGU Assistance')}>
-                        Barangay / LGU Educational Assistance {isGrantClosed('Barangay/LGU Assistance') ? '(Quota Reached - Closed)' : ''}
-                      </option>
+                      {programs.length > 0 ? (
+                        programs.map((p) => {
+                          const closed = isGrantClosed(p.name);
+                          return (
+                            <option key={p.id || p._id || p.name} value={p.name} disabled={closed}>
+                              {p.name} ({p.agency}) {closed ? '(Quota Reached - Closed)' : ''}
+                            </option>
+                          );
+                        })
+                      ) : (
+                        <>
+                          <option value="CHED TDP" disabled={isGrantClosed('CHED TDP')}>
+                            CHED Tulong Dunong Program (TDP-SUC) {isGrantClosed('CHED TDP') ? '(Quota Reached - Closed)' : ''}
+                          </option>
+                          <option value="Tertiary Education Subsidy (TES)" disabled={isGrantClosed('Tertiary Education Subsidy (TES)')}>
+                            Tertiary Education Subsidy (TES - UniFAST) {isGrantClosed('Tertiary Education Subsidy (TES)') ? '(Quota Reached - Closed)' : ''}
+                          </option>
+                          <option value="Academic Excellence Grant" disabled={isGrantClosed('Academic Excellence Grant')}>
+                            Academic Excellence Grant (President's/Dean's List) {isGrantClosed('Academic Excellence Grant') ? '(Quota Reached - Closed)' : ''}
+                          </option>
+                          <option value="DOST-SEI Grant" disabled={isGrantClosed('DOST-SEI Grant')}>
+                            DOST-SEI Science &amp; Technology Grant {isGrantClosed('DOST-SEI Grant') ? '(Quota Reached - Closed)' : ''}
+                          </option>
+                          <option value="Student Assistantship Program (SAP)" disabled={isGrantClosed('Student Assistantship Program (SAP)')}>
+                            Student Assistantship Program (SAP) {isGrantClosed('Student Assistantship Program (SAP)') ? '(Quota Reached - Closed)' : ''}
+                          </option>
+                          <option value="Barangay/LGU Assistance" disabled={isGrantClosed('Barangay/LGU Assistance')}>
+                            Barangay / LGU Educational Assistance {isGrantClosed('Barangay/LGU Assistance') ? '(Quota Reached - Closed)' : ''}
+                          </option>
+                        </>
+                      )}
                     </select>
                   </div>
 
@@ -979,7 +1043,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
                         Earmarked Semestral Benefit
                       </span>
                       <span className="text-base font-black text-maroon-primary">
-                        {formatPHP(PROGRAM_STIPENDS[formData.program] || 0)}
+                        {formatPHP(selectedProgramDoc?.stipendAmount ?? (PROGRAM_STIPENDS[formData.program] || 0))}
                       </span>
                     </div>
                     <div className="text-right text-[11px] text-neutral-600">

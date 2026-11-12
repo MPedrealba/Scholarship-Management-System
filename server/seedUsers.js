@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
+import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 
@@ -17,6 +19,9 @@ export const USERS_PER_ROLE = [
     role: 'admin',
     name: 'Dr. Rogelio T. Mamaradlo',
     college: null,
+    employeeId: 'ADM-2024-001',
+    studentNumber: null,
+    isActive: true,
   },
   {
     email: 'evaluator@earist.edu.ph',
@@ -24,6 +29,9 @@ export const USERS_PER_ROLE = [
     role: 'evaluator',
     name: 'Prof. Noel Carpio',
     college: 'CIT',
+    employeeId: 'EVL-CIT-004',
+    studentNumber: null,
+    isActive: true,
   },
   {
     email: 'student@earist.edu.ph',
@@ -31,10 +39,42 @@ export const USERS_PER_ROLE = [
     role: 'student',
     name: 'Juan Dela Cruz',
     college: 'CIT',
+    employeeId: null,
+    studentNumber: '2023-01849-MN-0',
+    isActive: true,
   },
 ];
 
 export async function seedOneUserPerRole() {
+  // Synchronize local db_store.json with clean seeded accounts
+  try {
+    const storePath = path.resolve(__dirname, 'data/db_store.json');
+    if (fs.existsSync(storePath)) {
+      const storeData = JSON.parse(fs.readFileSync(storePath, 'utf8'));
+      if (Array.isArray(storeData.users)) {
+        for (const userData of USERS_PER_ROLE) {
+          const hash = bcrypt.hashSync(userData.password, 10);
+          const existingIdx = storeData.users.findIndex(
+            (u) => u.email && u.email.toLowerCase() === userData.email.toLowerCase()
+          );
+          const userObj = {
+            ...userData,
+            password: hash,
+          };
+          if (existingIdx !== -1) {
+            storeData.users[existingIdx] = { ...storeData.users[existingIdx], ...userObj };
+          } else {
+            storeData.users.push(userObj);
+          }
+        }
+        fs.writeFileSync(storePath, JSON.stringify(storeData, null, 2));
+        console.log(' Synchronized local db_store.json with seeded user accounts.');
+      }
+    }
+  } catch (err) {
+    console.warn(' Local store update notice:', err.message);
+  }
+
   try {
     const mongoUri = process.env.MONGODB_URI;
     if (!mongoUri) {
@@ -42,7 +82,7 @@ export async function seedOneUserPerRole() {
     }
 
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(mongoUri);
+      await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 8000 });
       console.log(' Connected to MongoDB Atlas for seeding.');
     }
 

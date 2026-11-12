@@ -25,6 +25,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
   // Load notifications for current user role and college/studentNumber
   const loadNotifications = async () => {
+    // If no JWT token exists (logged-out/guest view), skip request and set empty list
+    const token = typeof window !== 'undefined' ? localStorage.getItem('earist_sfao_jwt') : null;
+    if (!token) {
+      setNotifications([]);
+      return;
+    }
+
     try {
       setIsLoading(true);
       const role = currentUser.role;

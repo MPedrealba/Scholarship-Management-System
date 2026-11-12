@@ -52,6 +52,9 @@ const forgotPasswordLimiter = rateLimit({
 
 // Initiate MongoDB Atlas Connection (with automatic background retry)
 connectDB();
+mongoose.connection.on('connected', () => {
+  DataStore.syncToMongoAtlas();
+});
 setTimeout(() => {
   DataStore.syncToMongoAtlas();
 }, 2000);
@@ -230,6 +233,40 @@ app.post('/api/applications', optionalToken, (req, res) => {
         });
       }
 
+      // Look up dynamic ScholarshipProgram & enforce eligibility
+      const programDoc = await DataStore.getScholarshipByName(scholarshipGrant);
+      if (programDoc) {
+        if (!programDoc.isActive) {
+          return res.status(400).json({
+            success: false,
+            error: `Application rejected: Scholarship grant "${scholarshipGrant}" is currently inactive and not accepting new applicants.`,
+          });
+        }
+
+        // Validate GWA dynamically against program maxGwa
+        const studentGwa = parseFloat(gwa);
+        if (!isNaN(studentGwa) && programDoc.maxGwa && studentGwa > programDoc.maxGwa) {
+          return res.status(400).json({
+            success: false,
+            error: `Application rejected: ${scholarshipGrant} requires a General Weighted Average (GWA) of ${Number(programDoc.maxGwa).toFixed(2)} or better. Your declared GWA (${studentGwa.toFixed(2)}) does not meet eligibility requirements.`,
+          });
+        }
+
+        // Validate Monthly Income dynamically against program maxMonthlyIncome
+        const studentIncome = parseFloat(monthlyIncome);
+        if (
+          !isNaN(studentIncome) &&
+          programDoc.maxMonthlyIncome !== null &&
+          programDoc.maxMonthlyIncome !== undefined &&
+          studentIncome > programDoc.maxMonthlyIncome
+        ) {
+          return res.status(400).json({
+            success: false,
+            error: `Application rejected: ${scholarshipGrant} statutory financial cap requires monthly household income not exceeding PHP ${Number(programDoc.maxMonthlyIncome).toLocaleString()}. Your declared monthly income (PHP ${studentIncome.toLocaleString()}) exceeds this statutory threshold.`,
+          });
+        }
+      }
+
       // Check Quota Status & Active Pipeline Capacity Enforcement
       const quotas = await DataStore.getQuotas();
       const quota = quotas.find(
@@ -343,7 +380,7 @@ app.post('/api/applications', optionalToken, (req, res) => {
         gwa: String(gwa).trim(),
         monthlyIncome: String(monthlyIncome).trim(),
         scholarshipGrant: scholarshipGrant.trim(),
-        stipendAmount: stipendAmount ? Number(stipendAmount) : 20000,
+        stipendAmount: programDoc?.stipendAmount !== undefined ? Number(programDoc.stipendAmount) : (stipendAmount ? Number(stipendAmount) : 20000),
         documents,
         status: 'Pending Review',
         evaluatorRemarks: 'Initial submission received and queued for college document verification.',
@@ -759,6 +796,186 @@ app.patch('/api/applications/:id/resolve-deficiency', optionalToken, (req, res) 
       return res.status(500).json({ success: false, error: error.message });
     }
   });
+});
+
+// =========================================================================
+// SCHOLARSHIP MANAGEMENT API (DYNAMIC SCHOLARSHIP CRUD & QUOTA SYNC)
+// =========================================================================
+
+/**
+ * GET /api/scholarships
+ * Public: Returns active scholarships with live Quota slot counts.
+ * Authenticated Admins: Returns all including inactive when includeInactive=true.
+ */
+app.get('/api/scholarships', optionalToken, async (req, res) => {
+  try {
+    const isAdmin = req.user?.role === 'admin';
+    const includeInactive = isAdmin && req.query.includeInactive === 'true';
+    const scholarships = await DataStore.getScholarships(includeInactive);
+    res.json({
+      success: true,
+      count: scholarships.length,
+      data: scholarships,
+    });
+  } catch (error) {
+    console.error('Fetch scholarships error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/scholarships
+ * Admin Only: Creates a new scholarship program + initializes its Quota record.
+ */
+app.post('/api/scholarships', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const {
+      name,
+      category,
+      agency,
+      stipendAmount,
+      description,
+      maxGwa,
+      maxMonthlyIncome,
+      requiredDocuments,
+      totalSlots,
+      isActive,
+    } = req.body;
+
+    if (!name || !category || !agency || stipendAmount === undefined || !description || !totalSlots) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required scholarship fields: name, category, agency, stipendAmount, description, totalSlots.',
+      });
+    }
+
+    const created = await DataStore.createScholarship({
+      name,
+      category,
+      agency,
+      stipendAmount,
+      description,
+      maxGwa,
+      maxMonthlyIncome,
+      requiredDocuments,
+      totalSlots,
+      isActive,
+    });
+
+    const adminEmail = req.user?.email || 'admin@earist.edu.ph';
+    const adminName = req.user?.name || 'Super Administrator';
+
+    await DataStore.addAuditLog({
+      userEmail: adminEmail,
+      userName: adminName,
+      role: 'admin',
+      action: `Created Scholarship Program "${created.name}"`,
+      details: `Category: ${created.category}, Agency: ${created.agency}, Stipend: PHP ${Number(created.stipendAmount).toLocaleString()}, Slots: ${created.totalSlots}`,
+      ipAddress: req.ip || '127.0.0.1',
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Scholarship program "${created.name}" created successfully.`,
+      data: created,
+    });
+  } catch (error) {
+    console.error('Create scholarship error:', error);
+    const status = error.statusCode || 500;
+    res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/scholarships/:id
+ * Admin Only: Edits program details, stipend, GWA/income criteria, total slots, active status, and syncs Quota.
+ */
+app.put('/api/scholarships/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await DataStore.getScholarshipById(id);
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Scholarship program not found.',
+      });
+    }
+
+    const updated = await DataStore.updateScholarship(id, req.body);
+
+    const adminEmail = req.user?.email || 'admin@earist.edu.ph';
+    const adminName = req.user?.name || 'Super Administrator';
+
+    await DataStore.addAuditLog({
+      userEmail: adminEmail,
+      userName: adminName,
+      role: 'admin',
+      action: `Updated Scholarship Program "${updated?.name || existing.name}"`,
+      details: `Administrative parameters updated for ${updated?.name || existing.name}.`,
+      ipAddress: req.ip || '127.0.0.1',
+    });
+
+    res.json({
+      success: true,
+      message: `Scholarship program "${updated?.name || existing.name}" updated successfully.`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error('Update scholarship error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/scholarships/:id
+ * Admin Only: Deletes the scholarship program.
+ * If existing student applications reference this grant, require force=true or return warning.
+ */
+app.delete('/api/scholarships/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await DataStore.getScholarshipById(id);
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Scholarship program not found.',
+      });
+    }
+
+    const applicationCount = await DataStore.countApplicationsForGrant(existing.name);
+    const isForce = req.query.force === 'true' || req.body?.force === true;
+
+    if (applicationCount > 0 && !isForce) {
+      return res.status(400).json({
+        success: false,
+        hasApplications: true,
+        applicationCount,
+        error: `Cannot delete "${existing.name}" because ${applicationCount} student application(s) currently reference this grant. Please archive or confirm forced removal.`,
+      });
+    }
+
+    await DataStore.deleteScholarship(id);
+
+    const adminEmail = req.user?.email || 'admin@earist.edu.ph';
+    const adminName = req.user?.name || 'Super Administrator';
+
+    await DataStore.addAuditLog({
+      userEmail: adminEmail,
+      userName: adminName,
+      role: 'admin',
+      action: `Deleted Scholarship Program "${existing.name}"`,
+      details: `Program removed from catalog by Super Administrator. (Referenced applications: ${applicationCount})`,
+      ipAddress: req.ip || '127.0.0.1',
+    });
+
+    res.json({
+      success: true,
+      message: `Scholarship program "${existing.name}" deleted successfully.`,
+    });
+  } catch (error) {
+    console.error('Delete scholarship error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 /**

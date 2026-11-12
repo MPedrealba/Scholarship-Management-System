@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { ScholarshipApplication } from '../../types';
+import type { ScholarshipApplication, ScholarshipProgramItem } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { loadApplications, saveApplications, syncApplicationsWithApi } from '../../utils/storageUtils';
+import { fetchScholarshipsApi } from '../../utils/api';
 import { formatPHP } from '../../utils/exportUtils';
 import { DashboardLayout } from '../common/DashboardLayout';
 import type { SidebarNavItem } from '../common/PortalSidebar';
@@ -39,6 +40,7 @@ export const EvaluatorDashboard: React.FC<EvaluatorDashboardProps> = ({
   const [applications, setApplications] = useState<ScholarshipApplication[]>(() =>
     loadApplications()
   );
+  const [scholarshipPrograms, setScholarshipPrograms] = useState<ScholarshipProgramItem[]>([]);
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'queue' | 'endorsed' | 'flagged' | 'profile'>('queue');
@@ -52,6 +54,14 @@ export const EvaluatorDashboard: React.FC<EvaluatorDashboardProps> = ({
         }
       })
       .catch((err) => console.warn('Could not sync applications in EvaluatorDashboard:', err));
+
+    fetchScholarshipsApi()
+      .then((progs) => {
+        if (Array.isArray(progs) && progs.length > 0) {
+          setScholarshipPrograms(progs);
+        }
+      })
+      .catch((err) => console.warn('Could not load scholarships in EvaluatorDashboard:', err));
   }, []);
 
   // Filters State
@@ -308,12 +318,22 @@ export const EvaluatorDashboard: React.FC<EvaluatorDashboardProps> = ({
               className="text-xs border border-neutral-300 rounded-lg px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:ring-2 focus:ring-maroon-primary cursor-pointer"
             >
               <option value="All">All Scholarship Grants</option>
-              <option value="Tertiary Education Subsidy (TES)">CHED UniFAST TES</option>
-              <option value="CHED TDP">CHED TDP</option>
-              <option value="DOST-SEI Grant">DOST-SEI Grant</option>
-              <option value="Academic Excellence Grant">Academic Excellence Grant</option>
-              <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
-              <option value="Barangay/LGU Assistance">Barangay/LGU Assistance</option>
+              {scholarshipPrograms.length > 0 ? (
+                scholarshipPrograms.map((prog) => (
+                  <option key={prog.id || prog._id || prog.name} value={prog.name}>
+                    {prog.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="Tertiary Education Subsidy (TES)">CHED UniFAST TES</option>
+                  <option value="CHED TDP">CHED TDP</option>
+                  <option value="DOST-SEI Grant">DOST-SEI Grant</option>
+                  <option value="Academic Excellence Grant">Academic Excellence Grant</option>
+                  <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
+                  <option value="Barangay/LGU Assistance">Barangay/LGU Assistance</option>
+                </>
+              )}
             </select>
 
             {(searchQuery || (activeTab === 'all' && statusFilter !== 'All') || programFilter !== 'All') && (

@@ -25,9 +25,11 @@ import {
   purgeOrphanedFilesApi,
   fetchAcademicTermsApi,
   archiveAcademicTermApi,
+  fetchScholarshipsApi,
   type QuotaRecord,
   type AuditLogRecord,
 } from '../../utils/api';
+import type { ScholarshipProgramItem } from '../../types';
 import {
   Search,
   CheckCircle2,
@@ -46,11 +48,13 @@ import {
   X,
   Loader2,
   Users,
+  GraduationCap,
 } from 'lucide-react';
 import { UserProfileView } from '../profile/UserProfileView';
 import { UserAccountsTab } from './UserAccountsTab';
 import { AdminQuotasTab } from './AdminQuotasTab';
 import { AdminAuditTab } from './AdminAuditTab';
+import { ScholarshipManagementTab } from './ScholarshipManagementTab';
 
 interface AdminDashboardProps {
   onNavigateHome?: () => void;
@@ -63,8 +67,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const { currentUser } = useAuth();
 
-  // Active Tab: 'masterlist' | 'quotas' | 'users' | 'audit' | 'profile'
-  const [activeTab, setActiveTab] = useState<'masterlist' | 'quotas' | 'users' | 'audit' | 'profile'>('masterlist');
+  // Active Tab: 'masterlist' | 'scholarships' | 'quotas' | 'users' | 'audit' | 'profile'
+  const [activeTab, setActiveTab] = useState<'masterlist' | 'scholarships' | 'quotas' | 'users' | 'audit' | 'profile'>('masterlist');
+  const [scholarshipPrograms, setScholarshipPrograms] = useState<ScholarshipProgramItem[]>([]);
 
   // Application Data State
   const [applications, setApplications] = useState<ScholarshipApplication[]>(() =>
@@ -161,6 +166,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
       })
       .catch((err) => console.warn('Could not load terms:', err));
+
+    fetchScholarshipsApi(true)
+      .then((progs) => {
+        if (Array.isArray(progs) && progs.length > 0) {
+          setScholarshipPrograms(progs);
+        }
+      })
+      .catch((err) => console.warn('Could not load scholarship programs:', err));
 
     loadStorageTelemetry();
   }, []);
@@ -548,6 +561,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       badge: kpis.totalApplicants,
     },
     {
+      id: 'scholarships',
+      label: 'Scholarship Management',
+      icon: GraduationCap,
+      badge: scholarshipPrograms.length || undefined,
+    },
+    {
       id: 'quotas',
       label: 'Grant Quotas',
       icon: Sliders,
@@ -563,7 +582,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       label: 'Audit Log (RA 10173)',
       icon: ShieldCheck,
     },
-  ], [kpis.totalApplicants, kpis.quotaUtilizationPct]);
+  ], [kpis.totalApplicants, kpis.quotaUtilizationPct, scholarshipPrograms.length]);
 
   const sectionMeta = useMemo(() => {
     switch (activeTab) {
@@ -571,6 +590,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return {
           title: 'User Profile & Account Settings',
           subtitle: 'Manage administrative identity, contact details, and cryptographic password security',
+        };
+      case 'scholarships':
+        return {
+          title: 'Scholarship Program Management',
+          subtitle: 'Institutional Grants, Sponsoring Agencies, Stipend Amounts, and Slot Capacities',
         };
       case 'quotas':
         return {
@@ -817,12 +841,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     className="w-full px-3 py-1.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-maroon-primary text-neutral-800"
                   >
                     <option value="All">All Programs</option>
-                    <option value="Tertiary Education Subsidy (TES)">CHED UniFAST TES</option>
-                    <option value="CHED TDP">CHED TDP-SUC</option>
-                    <option value="Academic Excellence Grant">Academic Excellence Grant</option>
-                    <option value="DOST-SEI Grant">DOST-SEI Grant</option>
-                    <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
-                    <option value="Barangay/LGU Assistance">Barangay / LGU Assistance</option>
+                    {scholarshipPrograms.length > 0 ? (
+                      scholarshipPrograms.map((prog) => (
+                        <option key={prog.id || prog._id || prog.name} value={prog.name}>
+                          {prog.name}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Tertiary Education Subsidy (TES)">CHED UniFAST TES</option>
+                        <option value="CHED TDP">CHED TDP-SUC</option>
+                        <option value="Academic Excellence Grant">Academic Excellence Grant</option>
+                        <option value="DOST-SEI Grant">DOST-SEI Grant</option>
+                        <option value="Student Assistantship Program (SAP)">Student Assistantship Program (SAP)</option>
+                        <option value="Barangay/LGU Assistance">Barangay / LGU Assistance</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -981,6 +1015,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </span>
             </div>
           </div>
+        )}
+
+        {/* ===================================================================== */}
+        {/* TAB: SCHOLARSHIP MANAGEMENT (DYNAMIC CRUD & LIVE QUOTA SYNC)          */}
+        {/* ===================================================================== */}
+        {activeTab === 'scholarships' && (
+          <ScholarshipManagementTab
+            onProgramChange={() => {
+              fetchScholarshipsApi(true).then((p) => {
+                if (Array.isArray(p)) setScholarshipPrograms(p);
+              });
+              fetchQuotasApi().then((q) => {
+                if (Array.isArray(q)) setApiQuotas(q);
+              });
+              syncApplicationsWithApi().then((apps) => {
+                if (apps) setApplications(apps);
+              });
+            }}
+          />
         )}
 
         {/* ===================================================================== */}

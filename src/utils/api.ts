@@ -4,6 +4,7 @@ import type {
   NotificationItem,
   AcademicTerm,
   StorageStatusResponse,
+  ScholarshipProgramItem,
 } from '../types';
 
 export interface QuotaRecord {
@@ -267,6 +268,14 @@ export async function fetchNotificationsApi(params?: {
   studentNumber?: string;
 }): Promise<NotificationItem[]> {
   try {
+    // Check if active JWT token exists before requesting notifications to prevent unauthenticated 401 errors
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('earist_sfao_jwt');
+      if (!token) {
+        return [];
+      }
+    }
+
     const q = new URLSearchParams();
     if (params?.role) q.append('role', params.role);
     if (params?.college) q.append('college', params.college);
@@ -289,6 +298,10 @@ export async function fetchNotificationsApi(params?: {
  */
 export async function markNotificationReadApi(id: string): Promise<void> {
   try {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('earist_sfao_jwt');
+      if (!token) return;
+    }
     await fetch(`${API_BASE}/notifications/${encodeURIComponent(id)}/read`, {
       method: 'PATCH',
       headers: getAuthHeaders(false),
@@ -307,6 +320,10 @@ export async function markAllNotificationsReadApi(payload?: {
   studentNumber?: string;
 }): Promise<void> {
   try {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('earist_sfao_jwt');
+      if (!token) return;
+    }
     await fetch(`${API_BASE}/notifications/read-all`, {
       method: 'PATCH',
       headers: getAuthHeaders(true),
@@ -559,3 +576,80 @@ export async function toggleUserStatusApi(
   }
   return data;
 }
+
+/**
+ * 24. Fetch Scholarship Programs (Public or Admin with Inactive)
+ */
+export async function fetchScholarshipsApi(includeInactive: boolean = false): Promise<ScholarshipProgramItem[]> {
+  const url = `${API_BASE}/scholarships${includeInactive ? '?includeInactive=true' : ''}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(false),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch scholarships: ${res.statusText}`);
+  }
+  const json = await res.json();
+  return json.data || [];
+}
+
+/**
+ * 25. Create Scholarship Program (Admin Only)
+ */
+export async function createScholarshipApi(
+  payload: Partial<ScholarshipProgramItem>
+): Promise<{ success: boolean; message?: string; data: ScholarshipProgramItem }> {
+  const res = await fetch(`${API_BASE}/scholarships`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to create scholarship program.');
+  }
+  return data;
+}
+
+/**
+ * 26. Update Scholarship Program (Admin Only)
+ */
+export async function updateScholarshipApi(
+  id: string,
+  payload: Partial<ScholarshipProgramItem>
+): Promise<{ success: boolean; message?: string; data: ScholarshipProgramItem }> {
+  const res = await fetch(`${API_BASE}/scholarships/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to update scholarship program.');
+  }
+  return data;
+}
+
+/**
+ * 27. Delete Scholarship Program (Admin Only)
+ */
+export async function deleteScholarshipApi(
+  id: string,
+  force: boolean = false
+): Promise<{ success: boolean; message?: string; hasApplications?: boolean; applicationCount?: number }> {
+  const url = `${API_BASE}/scholarships/${encodeURIComponent(id)}${force ? '?force=true' : ''}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify({ force }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error: any = new Error(data.error || 'Failed to delete scholarship program.');
+    error.hasApplications = data.hasApplications;
+    error.applicationCount = data.applicationCount;
+    throw error;
+  }
+  return data;
+}
+
