@@ -10,7 +10,7 @@ import type {
 import { useAuth } from '../../context/AuthContext';
 import { loadApplications, saveApplications, syncApplicationsWithApi } from '../../utils/storageUtils';
 import { exportApplicationsToCSV, formatPHP } from '../../utils/exportUtils';
-import { checkQuotaAvailability, PROGRAM_MAX_QUOTAS } from '../../utils/quotaUtils';
+import { checkQuotaAvailability } from '../../utils/quotaUtils';
 import { DashboardLayout } from '../common/DashboardLayout';
 import type { SidebarNavItem } from '../common/PortalSidebar';
 import { ApplicationDetailsModal } from '../scholarships/ApplicationDetailsModal';
@@ -131,16 +131,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Helper to count apps per term
+  const getTermAppCount = (termName: string, list: ScholarshipApplication[] = applications) => {
+    return list.filter(
+      (a) => (a.academicTerm || '1st Sem A.Y. 2026-2027') === termName
+    ).length;
+  };
+
   // Sync with live backend API on mount
   useEffect(() => {
-    syncApplicationsWithApi()
-      .then((apps) => {
-        if (apps && apps.length > 0) {
-          setApplications(apps);
-        }
-      })
-      .catch((err) => console.warn('Could not sync applications:', err));
-
     fetchQuotasApi()
       .then((quotas) => {
         if (Array.isArray(quotas) && quotas.length > 0) {
@@ -157,15 +156,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       })
       .catch((err) => console.warn('Could not load API audit logs:', err));
 
-    fetchAcademicTermsApi()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setTerms(data);
-          const active = data.find((t) => t.isActive);
-          if (active) setSelectedTerm(active.termName);
+    Promise.all([fetchAcademicTermsApi(), syncApplicationsWithApi()])
+      .then(([termsData, appsData]) => {
+        const currentApps = appsData && appsData.length > 0 ? appsData : loadApplications();
+        if (appsData && appsData.length > 0) {
+          setApplications(appsData);
+        }
+        if (Array.isArray(termsData) && termsData.length > 0) {
+          setTerms(termsData);
+          const active = termsData.find((t) => t.isActive);
+          if (active) {
+            const activeCount = currentApps.filter(
+              (a) => (a.academicTerm || '1st Sem A.Y. 2026-2027') === active.termName
+            ).length;
+            // If active term has 0 applications while older/other terms have records, default to 'All'
+            if (activeCount === 0 && currentApps.length > 0) {
+              setSelectedTerm('All');
+            } else {
+              setSelectedTerm(active.termName);
+            }
+          }
         }
       })
-      .catch((err) => console.warn('Could not load terms:', err));
+      .catch((err) => console.warn('Could not load terms and apps:', err));
 
     fetchScholarshipsApi(true)
       .then((progs) => {
@@ -278,39 +291,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // 1. CAMPUS-WIDE KPI METRICS
-  const kpis = useMemo(() => {
-    const totalApplicants = applications.length;
-    const totalStipend = applications.reduce((sum, app) => sum + (app.stipendAmount || 0), 0);
-    const approvedCount = applications.filter((a) => a.status === 'Approved').length;
-    const endorsedCount = applications.filter((a) => a.status === 'Endorsed').length;
-    const readyForDisbursement = approvedCount + endorsedCount;
+  // 1. FILTER APPLICATIONS BY ACADEMIC TERM
+  const termApplications = useMemo(() => {
+    if (selectedTerm === 'All') return applications;
+    return applications.filter(
+      (app) => (app.academicTerm || '1st Sem A.Y. 2026-2027') === selectedTerm
+    );
+  }, [applications, selectedTerm]);
 
-    // Overall Quota Utilization %
-    let totalMaxSlots = 0;
-    let totalFilledSlots = 0;
-    (Object.keys(PROGRAM_MAX_QUOTAS) as ScholarshipProgram[]).forEach((prog) => {
-      const cfg = PROGRAM_MAX_QUOTAS[prog];
-      const progApproved = applications.filter((a) => a.program === prog && a.status === 'Approved').length;
-      totalMaxSlots += cfg.max;
-      totalFilledSlots += Math.min(cfg.max, cfg.baseline + progApproved);
-    });
-
-    const quotaUtilizationPct = Math.round((totalFilledSlots / totalMaxSlots) * 100);
-
-    return {
-      totalApplicants,
-      totalStipend,
-      approvedCount,
-      endorsedCount,
-      readyForDisbursement,
-      quotaUtilizationPct,
-      totalMaxSlots,
-      totalFilledSlots,
-    };
-  }, [applications]);
-
-  // 2. REAL-TIME QUOTA SLOT MANAGEMENT METRICS
+  // 2. REAL-TIME QUOTA SLOT MANAGEMENT METRICS (LIVE SYNC WITH API & DYNAMIC PROGRAMS)
   const quotaCards = useMemo(() => {
     const defaultConfigs = [
       {
@@ -369,17 +358,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       },
     ];
 
-    return defaultConfigs.map((item) => {
+    const allConfigs = [...defaultConfigs];
+
+    // Include dynamic programs added via Scholarship Management not in defaultConfigs
+    scholarshipPrograms.forEach((sp) => {
+      const exists = allConfigs.some(
+        (c) => c.programName.toLowerCase() === sp.name.toLowerCase()
+      );
+      if (!exists) {
+        allConfigs.push({
+          id: sp.id || sp._id || `prog-${sp.name.toLowerCase().replace(/\s+/g, '-')}`,
+          title: sp.name,
+          programName: sp.name as ScholarshipProgram,
+          maxSlots: sp.totalSlots || 25,
+          baseline: 0,
+          stipendPerSem: sp.stipendAmount || 15000,
+          agency: sp.agency || 'EARIST Institutional Grant',
+        });
+      }
+    });
+
+    // Also check apiQuotas in case there's a quota record not in allConfigs
+    apiQuotas.forEach((aq) => {
+      const exists = allConfigs.some(
+        (c) => c.programName.toLowerCase() === aq.grantType.toLowerCase()
+      );
+      if (!exists) {
+        allConfigs.push({
+          id: aq.id || aq._id || `quota-${aq.grantType.toLowerCase().replace(/\s+/g, '-')}`,
+          title: aq.grantType,
+          programName: aq.grantType as ScholarshipProgram,
+          maxSlots: aq.totalSlots || 25,
+          baseline: aq.baseline || 0,
+          stipendPerSem: aq.stipendPerSem || 15000,
+          agency: aq.agency || 'Institutional SFAO Grant',
+        });
+      }
+    });
+
+    return allConfigs.map((item) => {
       const apiRecord = apiQuotas.find(
         (q) => q.grantType.toLowerCase() === item.programName.toLowerCase()
       );
 
       const maxSlots = apiRecord ? apiRecord.totalSlots : item.maxSlots;
       const approvedCount = applications.filter(
-        (a) => a.program === item.programName && a.status === 'Approved'
+        (a) => a.program.toLowerCase() === item.programName.toLowerCase() && a.status === 'Approved'
       ).length;
 
-      const filled = apiRecord
+      const filled = apiRecord && apiRecord.allocatedSlots !== undefined
         ? apiRecord.allocatedSlots
         : Math.min(maxSlots, item.baseline + approvedCount);
       const remaining = Math.max(0, maxSlots - filled);
@@ -396,21 +423,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         grantType: item.programName,
       };
     });
-  }, [applications, apiQuotas]);
+  }, [applications, apiQuotas, scholarshipPrograms]);
+
+  // 3. CAMPUS-WIDE KPI METRICS (DRIVEN BY SELECTED TERM AND LIVE QUOTA CARDS)
+  const kpis = useMemo(() => {
+    const totalApplicants = termApplications.length;
+    const totalStipend = termApplications.reduce((sum, app) => sum + (app.stipendAmount || 0), 0);
+    const approvedCount = termApplications.filter((a) => a.status === 'Approved').length;
+    const endorsedCount = termApplications.filter((a) => a.status === 'Endorsed').length;
+    const readyForDisbursement = approvedCount + endorsedCount;
+
+    // Overall Quota Utilization % computed from live quotaCards
+    const totalMaxSlots = quotaCards.reduce((sum, card) => sum + card.maxSlots, 0);
+    const totalFilledSlots = quotaCards.reduce((sum, card) => sum + card.filled, 0);
+    const quotaUtilizationPct = totalMaxSlots > 0 ? Math.round((totalFilledSlots / totalMaxSlots) * 100) : 0;
+
+    return {
+      totalApplicants,
+      totalStipend,
+      approvedCount,
+      endorsedCount,
+      readyForDisbursement,
+      quotaUtilizationPct,
+      totalMaxSlots,
+      totalFilledSlots,
+    };
+  }, [termApplications, quotaCards]);
 
   // Check if active or archived term
   const selectedTermObj = terms.find((t) => t.termName === selectedTerm);
   const isTermArchived = Boolean(selectedTermObj?.isArchived);
 
-  // 3. MASTERLIST FILTERING
+  // 4. MASTERLIST FILTERING (DERIVED FROM TERMAPPLICATIONS)
   const filteredApplications = useMemo(() => {
-    return applications.filter((app) => {
-      // Academic Term Filter
-      if (selectedTerm && selectedTerm !== 'All') {
-        const appTerm = app.academicTerm || '1st Sem A.Y. 2026-2027';
-        if (appTerm !== selectedTerm) return false;
-      }
-
+    return termApplications.filter((app) => {
       if (collegeFilter !== 'All' && app.college !== collegeFilter) return false;
       if (programFilter !== 'All' && app.program !== programFilter) return false;
       if (statusFilter !== 'All' && app.status !== statusFilter) return false;
@@ -426,7 +472,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       return true;
     });
-  }, [applications, collegeFilter, programFilter, statusFilter, searchQuery, selectedTerm]);
+  }, [termApplications, collegeFilter, programFilter, statusFilter, searchQuery]);
 
   // 4. SYSTEM AUDIT LOG DATA (RA 10173 COMPLIANCE)
   const systemAuditLogs = useMemo(() => {
@@ -679,7 +725,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="text-2xl font-bold text-neutral-900 mt-2 font-mono">
               {formatPHP(kpis.totalStipend)}
             </div>
-            <div className="text-xs text-neutral-500 mt-1">1st Semester A.Y. 2026–2027</div>
+            <div className="text-xs text-neutral-500 mt-1">
+              {selectedTerm === 'All' ? 'Across all academic terms' : selectedTerm}
+            </div>
           </div>
 
           {/* Card 3: Overall Quota Allocation */}
@@ -721,14 +769,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onChange={(e) => setSelectedTerm(e.target.value)}
                   className="px-3 py-1.5 text-xs font-semibold bg-white border border-neutral-300 rounded-lg text-neutral-900 focus:outline-none focus:ring-1 focus:ring-maroon-primary focus:border-maroon-primary cursor-pointer shadow-2xs"
                 >
+                  <option value="All">All Academic Terms ({applications.length})</option>
                   {terms.map((t) => (
                     <option key={t.termName} value={t.termName}>
-                      {t.termName} {t.isActive ? '(Active Intake)' : '(Archived)'}
+                      {t.termName} {t.isActive ? '(Active Intake)' : '(Archived)'} · {getTermAppCount(t.termName)}
                     </option>
                   ))}
                 </select>
 
-                {isTermArchived ? (
+                {selectedTerm === 'All' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    <span>All Terms • Consolidated Masterlist</span>
+                  </span>
+                ) : isTermArchived ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                     <Lock className="w-3 h-3 text-amber-600" />
                     <span>Archived • Read-Only Historical Snapshot</span>
@@ -742,7 +795,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {/* Close & Archive Active Term Button (Super Admin Only) */}
-              {!isTermArchived && (
+              {!isTermArchived && selectedTerm !== 'All' && (
                 <button
                   type="button"
                   onClick={() => setIsArchiveModalOpen(true)}
@@ -762,6 +815,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span>
                   <strong>Viewing Historical Archive ({selectedTerm}):</strong> Records are preserved in read-only audit compliance under R.A. 10173. Status mutations, approvals, and batch modifications are locked.
                 </span>
+              </div>
+            )}
+
+            {/* Notice Banner when active or selected term has 0 records but other terms have data */}
+            {selectedTerm !== 'All' && termApplications.length === 0 && applications.length > 0 && (
+              <div className="p-3 px-5 bg-blue-50 border-b border-blue-200 text-blue-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  <span>
+                    Academic Term <strong>&ldquo;{selectedTerm}&rdquo;</strong> currently has 0 applications, but <strong>{applications.length}</strong> record(s) exist across other academic terms.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTerm('All')}
+                  className="px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-white border border-blue-300 hover:bg-blue-100 rounded-md transition-colors cursor-pointer self-start sm:self-auto"
+                >
+                  View All Terms ({applications.length})
+                </button>
               </div>
             )}
 
@@ -1001,6 +1073,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-neutral-400">
                         <p className="font-medium text-neutral-600">No matching applications found.</p>
+                        {selectedTerm !== 'All' && applications.length > 0 && (
+                          <div className="mt-2.5">
+                            <p className="text-xs text-neutral-500">
+                              Selected term &ldquo;{selectedTerm}&rdquo; has no records matching the current filters ({applications.length} total recorded across all terms).
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedTerm('All');
+                                setCollegeFilter('All');
+                                setProgramFilter('All');
+                                setStatusFilter('All');
+                                setSearchQuery('');
+                              }}
+                              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-maroon-primary hover:bg-maroon-hover text-white rounded-lg shadow-2xs transition-colors cursor-pointer"
+                            >
+                              View All Academic Terms ({applications.length})
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
@@ -1009,7 +1101,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="p-4 bg-neutral-50 border-t border-neutral-200 text-xs text-neutral-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <span>Showing {filteredApplications.length} of {applications.length} student records</span>
+              <span>Showing {filteredApplications.length} of {termApplications.length} student records</span>
               <span className="text-[11px] text-neutral-400">
                 Official Commission on Higher Education (CHED) Masterlist Standard
               </span>
@@ -1135,7 +1227,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-1.5">
                 <strong className="block font-bold">Important Administrative Notice:</strong>
                 <p className="leading-relaxed">
-                  Archiving the current active term (<strong>{selectedTerm}</strong>) will permanently lock all {applications.length} submitted applications into a read-only historical state. Active intake quotas across all 6 scholarship grants will automatically be reset to 0 allocated slots.
+                  Archiving the current active term (<strong>{terms.find((t) => t.isActive)?.termName || selectedTerm}</strong>) will permanently lock its {getTermAppCount(terms.find((t) => t.isActive)?.termName || selectedTerm)} submitted application(s) into a read-only historical state. Active intake quotas across all scholarship grants will automatically be reset to 0 allocated slots.
                 </p>
               </div>
 
@@ -1146,7 +1238,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <input
                   type="text"
                   disabled
-                  value={selectedTerm}
+                  value={terms.find((t) => t.isActive)?.termName || selectedTerm}
                   className="w-full text-xs font-semibold px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-100 text-neutral-700 cursor-not-allowed"
                 />
               </div>

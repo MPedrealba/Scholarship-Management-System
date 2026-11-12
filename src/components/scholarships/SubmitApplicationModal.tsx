@@ -15,7 +15,7 @@ import {
 } from '../../data/mockData';
 import { formatPHP } from '../../utils/exportUtils';
 import { EaristLogo } from '../common/EaristLogo';
-import { fetchQuotasApi, fetchScholarshipsApi, submitApplicationApi, type QuotaRecord } from '../../utils/api';
+import { fetchQuotasApi, fetchScholarshipsApi, fetchAcademicTermsApi, submitApplicationApi, type QuotaRecord } from '../../utils/api';
 import {
   X,
   Upload,
@@ -131,6 +131,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
   // Quota & Dynamic Scholarship Programs State
   const [quotas, setQuotas] = useState<QuotaRecord[]>([]);
   const [programs, setPrograms] = useState<ScholarshipProgramItem[]>([]);
+  const [activeTermName, setActiveTermName] = useState<string>('1st Sem A.Y. 2026-2027');
 
   // Success Confirmation State
   const [submittedApp, setSubmittedApp] = useState<ScholarshipApplication | null>(null);
@@ -143,9 +144,22 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
     validId: useRef<HTMLInputElement>(null),
   };
 
-  // Fetch real-time quota slots and dynamic scholarships on modal open
+  // Fetch real-time quota slots, active term, and dynamic scholarships on modal open
   useEffect(() => {
     if (isOpen) {
+      fetchAcademicTermsApi()
+        .then((termsData) => {
+          if (Array.isArray(termsData) && termsData.length > 0) {
+            const active = termsData.find((t) => t.isActive);
+            if (active && active.termName) {
+              setActiveTermName(active.termName.trim());
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Unable to load active academic term in modal:', err);
+        });
+
       fetchScholarshipsApi()
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) {
@@ -418,7 +432,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
         'stipendAmount',
         String(selectedProgramDoc?.stipendAmount ?? (PROGRAM_STIPENDS[formData.program] || 20000))
       );
-      payload.append('academicTerm', '1st Sem A.Y. 2026-2027');
+      payload.append('academicTerm', activeTermName);
       payload.append('gwa', String(gwaNum));
       payload.append('monthlyIncome', formData.monthlyHouseholdIncome.trim());
       payload.append('annualIncome', String(monthlyIncomeNum * 12));
@@ -516,7 +530,7 @@ export const SubmitApplicationModal: React.FC<SubmitApplicationModalProps> = ({
           formData.email.trim() ||
           `${formData.studentId.toLowerCase().replace(/[^a-z0-9]/g, '')}@earist.edu.ph`,
         stipendAmount: stipend,
-        academicTerm: '1st Sem A.Y. 2026-2027',
+        academicTerm: activeTermName,
         evaluatorNotes:
           'Direct online intake via SFAO Student Application Portal. Verified attachments pending committee review.',
         attachedDocuments: attachedDocs,

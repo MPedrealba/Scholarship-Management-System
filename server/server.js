@@ -177,7 +177,16 @@ app.post('/api/applications', optionalToken, (req, res) => {
         stipendAmount,
       } = req.body;
 
-      const academicTerm = (req.body.academicTerm || '1st Sem A.Y. 2026-2027').trim();
+      let academicTerm = req.body.academicTerm ? String(req.body.academicTerm).trim() : '';
+      if (!academicTerm) {
+        try {
+          const terms = await DataStore.getAcademicTerms();
+          const activeTerm = Array.isArray(terms) ? terms.find((t) => t.isActive) : null;
+          academicTerm = activeTerm && activeTerm.termName ? activeTerm.termName.trim() : '1st Sem A.Y. 2026-2027';
+        } catch {
+          academicTerm = '1st Sem A.Y. 2026-2027';
+        }
+      }
 
       const requiredFields = [
         'studentNumber',
