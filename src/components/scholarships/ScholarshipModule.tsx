@@ -21,8 +21,6 @@ import { SubmitApplicationModal } from './SubmitApplicationModal';
 import { TrackApplicationModal } from './TrackApplicationModal';
 import { ScholarshipAnalyticsTab } from './ScholarshipAnalyticsTab';
 import { useAuth } from '../../context/AuthContext';
-import { DashboardLayout } from '../common/DashboardLayout';
-import type { SidebarNavItem } from '../common/PortalSidebar';
 import {
   GraduationCap,
   Search,
@@ -101,50 +99,6 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
       return true;
     });
   }, [scholarshipPrograms, catalogCategory]);
-
-  const studentSidebarItems = useMemo<SidebarNavItem[]>(() => [
-    {
-      id: 'programs',
-      label: 'Scholarship Programs',
-      icon: GraduationCap,
-    },
-    {
-      id: 'apply',
-      label: 'Apply Online',
-      icon: PlusCircle,
-      onClick: () => handleOpenApplyModal(),
-    },
-    {
-      id: 'track',
-      label: 'Track Status',
-      icon: Search,
-      onClick: () => setTrackModalOpen(true),
-    },
-    {
-      id: 'requirements',
-      label: 'Requirements Checklist',
-      icon: FileCheck,
-    },
-  ], []);
-
-  const studentSectionMeta = useMemo(() => {
-    if (studentTab === 'profile') {
-      return {
-        title: 'Student Profile & Account Settings',
-        subtitle: 'Review enrolled academic records, contact info, and manage password security',
-      };
-    }
-    if (studentTab === 'requirements') {
-      return {
-        title: 'Requirements Checklist & Forms',
-        subtitle: 'General document verification guidelines, RA 10173 compliance, and official templates',
-      };
-    }
-    return {
-      title: 'Scholarship Programs Catalog',
-      subtitle: 'CHED UniFAST, Institutional Honors, and LGU Educational Subsidies for A.Y. 2026–2027',
-    };
-  }, [studentTab]);
 
   // Filters State for evaluator table
   const [filters, setFilters] = useState<ReportFilterState>({
@@ -489,48 +443,75 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
       {/* VIEW A: AUTHENTIC PUBLIC-FACING STUDENT SCHOLARSHIP PORTAL (DEFAULT)     */}
       {/* ========================================================================= */}
       {viewMode === 'public' && (
-        <DashboardLayout
-          role="student"
-          activeTab={studentTab}
-          onTabChange={(tab) => setStudentTab(tab as 'programs' | 'requirements' | 'profile')}
-          title={studentSectionMeta.title}
-          subtitle={studentSectionMeta.subtitle}
-          sidebarItems={studentSidebarItems}
-          onSignOut={onBackToHome}
-          headerActions={
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleOpenApplyModal()}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-maroon-primary hover:bg-maroon-hover text-white shadow-2xs transition-colors cursor-pointer"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Apply Online</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTrackModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border border-neutral-300 transition-colors cursor-pointer shadow-2xs"
-              >
-                <Search className="w-3.5 h-3.5 text-neutral-400" />
-                <span className="hidden sm:inline">Track Status</span>
-              </button>
-              <button
-                type="button"
-                onClick={onBackToHome}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer ml-1"
-                title="Back to EARIST Homepage"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Homepage</span>
-              </button>
+        <div>
+          {/* Sub-Header Navigation Toolbar (Replaces sidebar & duplicate dashboard header) */}
+          <div className="bg-white border-b border-neutral-200 sticky top-0 z-10 shadow-2xs">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+              {/* Left: View Tabs */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStudentTab('programs')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    studentTab === 'programs'
+                      ? 'bg-maroon-primary text-white shadow-xs'
+                      : 'text-neutral-700 hover:bg-neutral-100'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>Scholarship Programs</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStudentTab('requirements')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    studentTab === 'requirements'
+                      ? 'bg-maroon-primary text-white shadow-xs'
+                      : 'text-neutral-700 hover:bg-neutral-100'
+                  }`}
+                >
+                  <FileCheck className="w-4 h-4" />
+                  <span>Requirements Checklist</span>
+                </button>
+              </div>
+
+              {/* Right: Quick Action Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenApplyModal()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-maroon-primary hover:bg-maroon-hover text-white shadow-2xs transition-colors cursor-pointer"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Apply Online</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrackModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-neutral-700 bg-white hover:bg-neutral-50 border border-neutral-300 transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Search className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Track Status</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onBackToHome}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer ml-1"
+                  title="Back to EARIST Homepage"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Homepage</span>
+                </button>
+              </div>
             </div>
-          }
-        >
-          {studentTab === 'profile' ? (
-            <UserProfileView />
-          ) : (
-            <div className="max-w-7xl mx-auto space-y-8">
+          </div>
+
+          {/* Full-Width Main Content */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            {studentTab === 'profile' ? (
+              <UserProfileView />
+            ) : (
+              <>
             {/* Quick Hero Banner in Main Area */}
             <div className="bg-gradient-to-br from-maroon-primary via-maroon-dark to-maroon-deep text-white rounded-2xl p-6 sm:p-8 shadow-xs border-b-4 border-gold-accent space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-gold-light text-xs font-bold uppercase tracking-wider">
@@ -978,10 +959,11 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
               <span><strong>Email:</strong> sfao@earist.edu.ph</span>
             </div>
           </section>
+              </>
+            )}
+          </div>
         </div>
       )}
-    </DashboardLayout>
-  )}
 
       {/* ========================================================================= */}
       {/* VIEW B: STAFF & EVALUATOR WORKSPACE (ACCESSED VIA EVALUATOR LOGIN)        */}
