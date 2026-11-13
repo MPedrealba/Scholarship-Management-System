@@ -102,8 +102,47 @@
   animation: soft-pulse 2.2s infinite ease-in-out;
 }
 
+/* Print Page Setup */
+@page {
+  margin: 0.4in;
+}
+
+@page sfao-report {
+  size: letter landscape;
+  margin: 0.35in;
+}
+
 /* Print Stylesheet for Formal Institutional Weekly Report */
 @media print {
+  /* Isolate PrintReportModal portal when printing SFAO Report */
+  body.printing-sfao-report > #root {
+    display: none !important;
+  }
+
+  body.printing-sfao-report > .print-report-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    page: sfao-report;
+  }
+
+  body.printing-sfao-report {
+    font-size: 9pt !important;
+  }
+
+  /* Reset document root to allow natural multi-page pagination */
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
   /* Hide all regular web interactive elements */
   nav,
   header,
@@ -114,23 +153,17 @@
     display: none !important;
   }
 
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-    font-size: 11pt !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* Make print container take full page */
+  /* Make print container take full page and let @page handle margins */
   .printable-report-area {
     display: block !important;
     position: static !important;
     width: 100% !important;
+    max-width: none !important;
     margin: 0 !important;
-    padding: 0.5in !important;
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
+    overflow: visible !important;
   }
 
   table {
@@ -138,10 +171,20 @@
     border-collapse: collapse !important;
   }
 
-  th, td {
+  /* Crisp borders and compact print typography for SFAO tables */
+  .sfao-roster-table th,
+  .sfao-roster-table td {
     border: 1px solid #333333 !important;
-    padding: 6px 8px !important;
-    font-size: 9.5pt !important;
+    font-size: 7.5pt !important;
+    line-height: 1.25 !important;
+    padding: 3px 5px !important;
+  }
+
+  .sfao-summary-table th,
+  .sfao-summary-table td {
+    border: 1px solid #333333 !important;
+    font-size: 8pt !important;
+    padding: 4px 6px !important;
   }
 
   thead {
@@ -150,7 +193,13 @@
   }
 
   tr {
+    break-inside: avoid;
     page-break-inside: avoid !important;
+  }
+
+  .signatory-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .print-page-break {

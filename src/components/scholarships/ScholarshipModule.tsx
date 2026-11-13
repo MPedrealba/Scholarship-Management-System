@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type {
   ScholarshipApplication,
   ReportFilterState,
@@ -52,16 +52,107 @@ interface ScholarshipModuleProps {
   initialCollegeFilter?: string;
 }
 
+export const DEFAULT_PUBLIC_SCHOLARSHIPS: ScholarshipProgramItem[] = [
+  {
+    id: 'prog-tes',
+    name: 'Tertiary Education Subsidy (TES)',
+    category: 'National Government',
+    agency: 'CHED UniFAST',
+    stipendAmount: 20000,
+    description: 'Direct financial assistance provided by the National Government under RA 10931 to qualified students in State Universities and Colleges.',
+    maxGwa: 3.0,
+    maxMonthlyIncome: 33333,
+    requiredDocuments: ['COR', 'Grade Slip', 'Certificate of Indigency', 'Valid Student ID'],
+    totalSlots: 50,
+    allocatedSlots: 47,
+    remainingSlots: 3,
+    isActive: true,
+  },
+  {
+    id: 'prog-tdp',
+    name: 'CHED TDP',
+    category: 'National Government',
+    agency: 'CHED UniFAST',
+    stipendAmount: 15000,
+    description: 'Grants-in-aid supporting qualified Filipino youth enrolled in priority curricula of public higher education institutions.',
+    maxGwa: 2.5,
+    maxMonthlyIncome: 25000,
+    requiredDocuments: ['COR', 'Grade Slip', 'Certificate of Indigency', 'Valid Student ID'],
+    totalSlots: 40,
+    allocatedSlots: 37,
+    remainingSlots: 3,
+    isActive: true,
+  },
+  {
+    id: 'prog-dost',
+    name: 'DOST-SEI Grant',
+    category: 'National Government',
+    agency: 'DOST-SEI',
+    stipendAmount: 25000,
+    description: 'Scholarship grant for students enrolled in prioritized engineering, technological, and applied science curricula.',
+    maxGwa: 2.0,
+    maxMonthlyIncome: null,
+    requiredDocuments: ['COR', 'Grade Slip', 'Certificate of Indigency', 'Valid Student ID'],
+    totalSlots: 20,
+    allocatedSlots: 18,
+    remainingSlots: 2,
+    isActive: true,
+  },
+  {
+    id: 'prog-academic',
+    name: 'Academic Excellence Grant',
+    category: 'Institutional',
+    agency: 'EARIST SFAO',
+    stipendAmount: 18000,
+    description: "Merit cash incentives awarded to top academic performers (Dean's & President's List honors) across all undergraduate colleges.",
+    maxGwa: 1.75,
+    maxMonthlyIncome: null,
+    requiredDocuments: ['COR', 'Grade Slip', 'Certificate of Indigency', 'Valid Student ID'],
+    totalSlots: 25,
+    allocatedSlots: 22,
+    remainingSlots: 3,
+    isActive: true,
+  },
+  {
+    id: 'prog-sap',
+    name: 'Student Assistantship Program (SAP)',
+    category: 'Institutional',
+    agency: 'EARIST SFAO',
+    stipendAmount: 8000,
+    description: 'Hands-on administrative and laboratory work-study assignments inside campus colleges, departments, and service offices.',
+    maxGwa: 2.5,
+    maxMonthlyIncome: null,
+    requiredDocuments: ['COR', 'Grade Slip', 'Certificate of Indigency', 'Valid Student ID'],
+    totalSlots: 20,
+    allocatedSlots: 17,
+    remainingSlots: 3,
+    isActive: true,
+  },
+  {
+    id: 'prog-lgu',
+    name: 'Barangay/LGU Assistance',
+    category: 'LGU / Private',
+    agency: 'Manila LGU / District Congressional Office',
+    stipendAmount: 10000,
+    description: 'Educational financial subsidies for bona fide residents of Manila districts and local government partner jurisdictions.',
+    maxGwa: 2.75,
+    maxMonthlyIncome: 30000,
+    requiredDocuments: ['COR', 'Grade Slip', 'Certificate of Indigency', 'Valid Student ID'],
+    totalSlots: 30,
+    allocatedSlots: 21,
+    remainingSlots: 9,
+    isActive: true,
+  },
+];
+
 export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
   onBackToHome,
   initialCollegeFilter = 'All',
 }) => {
   const { currentUser } = useAuth();
 
-  // Primary Separation of Concerns: Default is Public Portal (or Evaluator if logged in)
-  const [viewMode, setViewMode] = useState<'public' | 'evaluator'>(() => {
-    return currentUser.role !== 'student' ? 'evaluator' : 'public';
-  });
+  // #scholarships is the public catalog; always default to 'public' regardless of authenticated role
+  const [viewMode, setViewMode] = useState<'public' | 'evaluator'>('public');
 
   // Application Data State - loaded from localStorage
   const [applications, setApplications] = useState<ScholarshipApplication[]>(() =>
@@ -75,7 +166,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
 
   // Active catalog filter on Public view
   const [catalogCategory, setCatalogCategory] = useState<'all' | 'national' | 'institutional' | 'lgu'>('all');
-  const [scholarshipPrograms, setScholarshipPrograms] = useState<ScholarshipProgramItem[]>([]);
+  const [scholarshipPrograms, setScholarshipPrograms] = useState<ScholarshipProgramItem[]>(DEFAULT_PUBLIC_SCHOLARSHIPS);
 
   // Student portal active navigation tab
   const [studentTab, setStudentTab] = useState<'programs' | 'requirements' | 'profile'>('programs');
@@ -88,7 +179,10 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
           setScholarshipPrograms(data);
         }
       })
-      .catch((err) => console.warn('Could not load public scholarships:', err));
+      .catch((err) => {
+        console.warn('Could not load public scholarships, using institutional presets:', err);
+        setScholarshipPrograms(DEFAULT_PUBLIC_SCHOLARSHIPS);
+      });
   }, []);
 
   const filteredCatalogPrograms = useMemo(() => {
@@ -114,22 +208,6 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
         : initialCollegeFilter,
     searchQuery: '',
   });
-
-  // Synchronize when authenticated role changes
-  const prevUserRef = useRef(currentUser);
-  useEffect(() => {
-    if (prevUserRef.current !== currentUser) {
-      prevUserRef.current = currentUser;
-      if (currentUser.role === 'evaluator') {
-        setViewMode('evaluator');
-        if (currentUser.college) {
-          setFilters((prev) => ({ ...prev, college: currentUser.college! }));
-        }
-      } else if (currentUser.role === 'superadmin') {
-        setViewMode('evaluator');
-      }
-    }
-  }, [currentUser]);
 
   // Sync applications from live server on mount
   useEffect(() => {
@@ -661,7 +739,7 @@ export const ScholarshipModule: React.FC<ScholarshipModuleProps> = ({
                         : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                     }`}
                   >
-                    All Programs (8)
+                    All Programs ({scholarshipPrograms.length})
                   </button>
                   <button
                     type="button"
